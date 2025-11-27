@@ -15,18 +15,13 @@ const brandPalette = {
   'Otros': { border: '#94a3b8', bg: 'rgba(148, 163, 184, 0.2)' } // Gris
 }
 
-// Colores por defecto para marcas nuevas que no estén en la lista
-const defaultColors = [
-  '#ef4444', '#f97316', '#84cc16', '#14b8a6'
-]
+const defaultColors = ['#ef4444', '#f97316', '#84cc16', '#14b8a6']
 
 function getBrandColor(brand, index) {
-  if (brandPalette[brand]) {
-    return brandPalette[brand]
-  }
+  if (brandPalette[brand]) return brandPalette[brand]
   // Si no existe, asignar uno rotativo
   const color = defaultColors[index % defaultColors.length]
-  return { border: color, bg: color + '33' } // Agrega transparencia al bg
+  return { border: color, bg: color + '33' } // Agrega transparencia
 }
 
 function formatDate(dateString) {
@@ -40,11 +35,18 @@ async function loadData() {
   const lastUpdateLabel = document.getElementById('last-update')
 
   try {
-    // Consulta a Supabase
+    // 1️⃣ DEFINIR FECHA DE CORTE (Optimización)
+    // Traemos solo los últimos 15 días para que la carga sea rápida y relevante
+    const cutOffDate = new Date()
+    cutOffDate.setDate(cutOffDate.getDate() - 15)
+
+    // 2️⃣ CONSULTA A SUPABASE (CORRECCIÓN APLICADA)
     let { data, error } = await supabase
       .from('messages')
       .select('date, brand')
+      .gte('date', cutOffDate.toISOString()) // Filtro: Solo desde hace 15 días
       .order('date', { ascending: true })
+      .limit(10000) // <--- ¡AQUÍ ESTÁ LA SOLUCIÓN! Subimos el límite de 1000 a 10000
 
     if (error) throw error
 
@@ -77,11 +79,7 @@ async function loadData() {
         return a.localeCompare(b);
     });
 
-    const sortedDates = Object.keys(pivot).sort((a,b) => {
-        // Truco para ordenar fechas formateadas "Nov 21" convirtiendo a timestamp temporalmente si es necesario
-        // Pero como vienen ordenadas de SQL, confiamos en el orden de inserción de keys o usamos lógica extra
-        return 0; 
-    })
+    const sortedDates = Object.keys(pivot) // Vienen ordenados por la query SQL
 
     // --- RENDERIZADO TABLA ---
     const theadRow = document.getElementById('table-header-row')
@@ -96,7 +94,10 @@ async function loadData() {
 
     // Body
     tbody.innerHTML = ''
-    sortedDates.forEach(date => {
+    
+    // Invertimos el orden SOLO para la tabla (para ver hoy primero)
+    // Usamos [...sortedDates] para crear una copia y no afectar el orden del gráfico
+    ;[...sortedDates].reverse().forEach(date => {
         const tr = document.createElement('tr')
         tr.className = "hover:bg-slate-50 transition-colors"
         
@@ -137,7 +138,7 @@ async function loadData() {
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: sortedDates,
+            labels: sortedDates, // Gráfico mantiene orden cronológico (Izq -> Der)
             datasets: datasets
         },
         options: {
