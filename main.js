@@ -20,6 +20,12 @@ let maxAvailableDate = '';
 let selectedDates = new Set(); 
 let chartInstance = null; 
 
+// VARIABLES PARA EL DRAG (BARRIDO)
+let isDragging = false;
+let dragStartIndex = -1;
+let dragMode = 'select'; // 'select' (encender) o 'deselect' (apagar)
+let visibleDateKeys = []; // Para saber el orden de los botones
+
 // --- FUNCIONES UTILITARIAS ---
 function getBrandColor(brand, index) {
   if (brandPalette[brand]) return brandPalette[brand]
@@ -38,35 +44,43 @@ function formatDisplayDate(dateString) {
   return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// --- CONFIGURACIÓN DE LAS FLECHAS DEL CARRUSEL ---
+// --- CONFIGURACIÓN DE FLECHAS ---
 function setupScrollArrows() {
     const container = document.getElementById('date-selector-container');
     const leftBtn = document.getElementById('scroll-left-btn');
     const rightBtn = document.getElementById('scroll-right-btn');
 
     if(leftBtn && rightBtn && container) {
-        leftBtn.onclick = () => {
-            container.scrollBy({ left: -200, behavior: 'smooth' });
-        };
-        rightBtn.onclick = () => {
-            container.scrollBy({ left: 200, behavior: 'smooth' });
-        };
+        leftBtn.onclick = () => container.scrollBy({ left: -200, behavior: 'smooth' });
+        rightBtn.onclick = () => container.scrollBy({ left: 200, behavior: 'smooth' });
     }
 }
 
-// --- RENDERIZADO DEL SELECTOR (CARRUSEL 1 LÍNEA) ---
+// --- RENDERIZADO DEL SELECTOR ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
     container.innerHTML = '';
+    visibleDateKeys = []; // Reiniciar lista de orden
 
-    // Rango extendido hasta 5 Dic
     const startDate = new Date('2025-11-17'); 
     const endDate = new Date('2025-12-05'); 
 
     let currentDate = new Date(startDate);
+    let index = 0;
+
+    // Escuchar cuando se suelta el mouse en cualquier parte de la ventana
+    // para finalizar el arrastre correctamente
+    window.onmouseup = () => {
+        if (isDragging) {
+            isDragging = false;
+            updateDashboard(); // Actualizar gráfica al soltar
+        }
+    };
 
     while (currentDate <= endDate) {
         const dateKey = formatDateKey(currentDate);
+        visibleDateKeys.push(dateKey); // Guardar orden
+
         const displayDay = currentDate.getDate();
         const displayMonth = currentDate.toLocaleDateString('en-US', { month: 'short' });
         const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
@@ -76,9 +90,10 @@ function renderDateSelector() {
         const isSelected = selectedDates.has(dateKey);
 
         const btn = document.createElement('button');
+        btn.id = `date-btn-${index}`; // ID único para manipular estilos rápido
         
-        // CAMBIO CRUCIAL: 'flex-shrink-0' evita que los botones se aplasten
-        let classes = "flex-shrink-0 flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all w-[55px] ";
+        // Estilos Base
+        let classes = "flex-shrink-0 flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all w-[55px] select-none ";
         
         if (!hasData) {
             classes += "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50";
@@ -91,36 +106,84 @@ function renderDateSelector() {
         
         btn.className = classes;
         
-        const monthLabel = displayDay === 1 ? `<span class="text-[9px] font-bold text-indigo-200">${displayMonth.toUpperCase()}</span>` : `<span class="text-[9px] uppercase tracking-wide opacity-80">${dayName}</span>`;
+        const monthLabel = displayDay === 1 ? `<span class="text-[9px] font-bold text-indigo-200 pointer-events-none">${displayMonth.toUpperCase()}</span>` : `<span class="text-[9px] uppercase tracking-wide opacity-80 pointer-events-none">${dayName}</span>`;
 
         btn.innerHTML = `
             ${monthLabel}
-            <span class="text-base leading-none">${displayDay}</span>
+            <span class="text-base leading-none pointer-events-none">${displayDay}</span>
         `;
 
+        // --- EVENTOS PARA EL "BARRIDO" (DRAG) ---
         if (hasData) {
-            btn.onclick = () => handleDateClick(dateKey);
+            // 1. Iniciar Arrastre
+            btn.onmousedown = (e) => {
+                // Evitar selección de texto
+                e.preventDefault(); 
+                isDragging = true;
+                dragStartIndex = visibleDateKeys.indexOf(dateKey);
+                
+                // Si empiezo en uno seleccionado, modo = APAGAR. Si no, modo = ENCENDER.
+                dragMode = selectedDates.has(dateKey) ? 'deselect' : 'select';
+                
+                // Aplicar cambio al inicial inmediatamente
+                applySelectionLogic(dateKey);
+                updateButtonStyle(btn, dateKey);
+            };
+
+            // 2. Moverse sobre otros botones
+            btn.onmouseenter = () => {
+                if (isDragging) {
+                    const currentIndex = visibleDateKeys.indexOf(dateKey);
+                    handleDragSelection(currentIndex);
+                }
+            };
         }
 
         container.appendChild(btn);
         currentDate.setDate(currentDate.getDate() + 1);
+        index++;
     }
 }
 
-// --- LÓGICA MULTI-SELECT (TOGGLE) ---
-function handleDateClick(dateKey) {
-    if (selectedDates.has(dateKey)) {
-        if (selectedDates.size > 1) {
-            selectedDates.delete(dateKey);
-        } else {
+// --- LÓGICA DEL BARRIDO ---
+function handleDragSelection(currentIndex) {
+    // Determinar rango (min a max) entre donde empecé y donde estoy
+    const start = Math.min(dragStartIndex, currentIndex);
+    const end = Math.max(dragStartIndex, currentIndex);
+
+    for (let i = start; i <= end; i++) {
+        const dateKey = visibleDateKeys[i];
+        
+        // Aplicar la lógica (Select o Deselect)
+        applySelectionLogic(dateKey);
+        
+        // Actualizar visualmente el botón SIN recargar todo (Rendimiento)
+        const btn = document.getElementById(`date-btn-${i}`);
+        if (btn && !btn.disabled) {
+            updateButtonStyle(btn, dateKey);
+        }
+    }
+}
+
+function applySelectionLogic(dateKey) {
+    if (dragMode === 'select') {
+        selectedDates.add(dateKey);
+    } else {
+        // Evitamos borrar todo para no romper la gráfica (opcional)
+        if (selectedDates.size > 1 || dragMode === 'select') {
              selectedDates.delete(dateKey);
         }
-    } else {
-        selectedDates.add(dateKey);
     }
-    
-    renderDateSelector();
-    updateDashboard();
+}
+
+// Función auxiliar para cambiar clases CSS al vuelo durante el arrastre
+function updateButtonStyle(btn, dateKey) {
+    const isSelected = selectedDates.has(dateKey);
+    if (isSelected) {
+        btn.className = "flex-shrink-0 flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all w-[55px] select-none bg-indigo-600 border-indigo-600 text-white shadow-sm font-semibold transform scale-105";
+    } else {
+        btn.className = "flex-shrink-0 flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all w-[55px] select-none bg-white border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-indigo-50";
+    }
 }
 
 // --- ACTUALIZACIÓN DE DATOS ---
@@ -292,7 +355,6 @@ async function loadData() {
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-    // SYNC LOG
     try {
         const { data: lastMsgData } = await supabase.from('messages').select('brand, extra1, date, id').order('date', { ascending: false }).limit(1);
         if (lastMsgData && lastMsgData.length > 0) {
@@ -303,7 +365,6 @@ async function loadData() {
         }
     } catch (e) {}
 
-    // DETECTAR ÚLTIMA FECHA
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
         maxAvailableDate = lastItem.day.split('T')[0];
@@ -311,7 +372,6 @@ async function loadData() {
         maxAvailableDate = '2025-11-27'; 
     }
 
-    // AUTO-SELECT ALL
     let tempDate = new Date('2025-11-20');
     const lastDate = new Date(maxAvailableDate);
     selectedDates.clear();
@@ -320,7 +380,6 @@ async function loadData() {
         tempDate.setDate(tempDate.getDate() + 1);
     }
 
-    // ACTIVAR FLECHAS Y RENDERIZAR
     setupScrollArrows(); 
     renderDateSelector();
     updateDashboard();
