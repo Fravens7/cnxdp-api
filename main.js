@@ -34,22 +34,45 @@ async function loadData() {
     tbody.appendChild(tr)
   }
 
-  // Gráfico
+  // Gráfico Stacked Area
   const labels = [...new Set(data.map(d => d.date))].sort()
   const brands = [...new Set(data.map(d => d.brand))]
   const datasets = brands.map(brand => ({
     label: brand,
     data: labels.map(date => grouped[`${date}|${brand}`] || 0),
-    backgroundColor: '#' + Math.floor(Math.random() * 16777215).toString(16)
+    fill: true,                   // área debajo de la línea
+    borderColor: '#' + Math.floor(Math.random() * 16777215).toString(16),
+    backgroundColor: 'rgba(' + 
+      Math.floor(Math.random()*255) + ',' + 
+      Math.floor(Math.random()*255) + ',' + 
+      Math.floor(Math.random()*255) + ',0.3)',
+    tension: 0.3                   // suaviza las curvas
   }))
 
   new Chart(document.getElementById('chart'), {
-    type: 'bar',
+    type: 'line',
     data: { labels, datasets },
     options: {
       responsive: true,
       plugins: {
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.parsed.y}`
+            }
+          }
+        },
         legend: { position: 'top' }
+      },
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true }
       }
     }
   })
