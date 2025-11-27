@@ -1,34 +1,35 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-// Asegúrate de tener config.js cargado antes en el HTML
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
-// --- CONFIGURACIÓN VISUAL ---
+// --- VISUAL CONFIGURATION ---
+// Using colors closer to the reference image style
 const brandPalette = {
-  'M1': { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' }, 
-  'K1': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, 
-  'B1': { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' }, 
-  'B2': { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' }, 
-  'B3': { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }, 
-  'B4': { border: '#06b6d4', bg: 'rgba(6, 182, 212, 0.2)' },  
-  'M2': { border: '#6366f1', bg: 'rgba(99, 102, 241, 0.2)' }, 
-  // Nota: Ya no definimos 'Otros' porque los vamos a ocultar
+  'M1': { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.6)' }, // Blue strong
+  'K1': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.6)' }, // Emerald
+  'B1': { border: '#f97316', bg: 'rgba(249, 115, 22, 0.6)' }, // Orange strong
+  'B2': { border: '#a855f7', bg: 'rgba(168, 85, 247, 0.6)' }, // Purple
+  'B3': { border: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.6)' }, // Sky blue
+  'B4': { border: '#84cc16', bg: 'rgba(132, 204, 22, 0.6)' }, // Lime
+  'M2': { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.6)' }, // Red
 }
 
-const defaultColors = ['#ef4444', '#f97316', '#84cc16', '#14b8a6']
+const defaultColors = ['#64748b', '#94a3b8', '#cbd5e1']
 
 function getBrandColor(brand, index) {
   if (brandPalette[brand]) return brandPalette[brand]
   const color = defaultColors[index % defaultColors.length]
-  return { border: color, bg: color + '33' }
+  return { border: color, bg: color + '99' }
 }
 
+// Format changed to English (US)
 function formatDate(dateString) {
-  // Ajuste para evitar problemas de zona horaria al formatear
   const date = new Date(dateString)
+  // Adjust timezone offset
   const userTimezoneOffset = date.getTimezoneOffset() * 60000;
   const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-  return adjustedDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+  // Change locale to en-US
+  return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 async function loadData() {
@@ -37,96 +38,91 @@ async function loadData() {
   const lastUpdateLabel = document.getElementById('last-update')
 
   try {
-    console.log("🔄 Iniciando carga de datos...")
+    console.log("🔄 Starting data load...")
 
     const cutOffDate = new Date()
-    cutOffDate.setDate(cutOffDate.getDate() - 15) // Últimos 15 días
+    cutOffDate.setDate(cutOffDate.getDate() - 15) // Last 15 days
 
-    // ---------------------------------------------------------
-    // 1️⃣ CAMBIO CRUCIAL: CONSULTAMOS LA VISTA SQL, NO LA TABLA
-    // ---------------------------------------------------------
+    // 1️⃣ QUERY THE SQL VIEW
     let { data, error } = await supabase
-      .from('daily_brand_counts') // <--- Aquí usamos la vista que creaste
-      .select('*')                // Traemos: day, brand, total_count
+      .from('daily_brand_counts') 
+      .select('*')
       .gte('day', cutOffDate.toISOString())
       .order('day', { ascending: true })
 
     if (error) throw error
 
-    // ---------------------------------------------------------
-    // 2️⃣ FILTRO: Ocultar SYSTEM y Otros
-    // ---------------------------------------------------------
-    // Aquí es donde borramos lo que no quieres ver antes de graficar
+    // 2️⃣ FILTER: Hide SYSTEM and Otros
     const cleanData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-    console.log(`✅ Datos recibidos: ${cleanData.length} filas (Resumen optimizado)`) 
+    console.log(`✅ Data received: ${cleanData.length} rows (Optimized summary)`) 
 
-    // --- PROCESAMIENTO DE DATOS ---
+    // --- DATA PROCESSING ---
     const pivot = {}
     const brandsSet = new Set()
+    const brandTotals = {} // Object to store total volume per brand
     
     cleanData.forEach(d => {
-      // Nota los cambios de nombre: d.day en vez de d.date
       const date = formatDate(d.day) 
       const brand = d.brand
-      
-      // 3️⃣ USAMOS EL CONTEO QUE YA HIZO SQL
-      // Ya no sumamos +1, usamos el número real que viene de la base de datos
       const count = d.total_count 
 
       brandsSet.add(brand)
       
+      // Calculate totals for sorting columns later
+      brandTotals[brand] = (brandTotals[brand] || 0) + count;
+
       if (!pivot[date]) pivot[date] = {}
       pivot[date][brand] = count
     })
 
-    const knownBrands = Object.keys(brandPalette)
     const foundBrands = Array.from(brandsSet)
     
-    // Ordenar marcas
+    // 3️⃣ SORTING BRANDS (Columns) DESCENDING BY TOTAL VOLUME
     const sortedBrands = foundBrands.sort((a, b) => {
-        const aKnown = knownBrands.includes(a);
-        const bKnown = knownBrands.includes(b);
-        if (aKnown && !bKnown) return -1;
-        if (!aKnown && bKnown) return 1;
-        return a.localeCompare(b);
+        // Sort by total volume descending (b - a)
+        return brandTotals[b] - brandTotals[a];
     });
 
     const sortedDates = Object.keys(pivot)
 
-    // --- RENDERIZADO TABLA ---
+    // --- TABLE RENDERING ---
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
     
-    theadRow.innerHTML = '<th class="px-6 py-3 rounded-tl-lg">Fecha</th>'
+    // Headers with English text and better styling
+    theadRow.innerHTML = '<th class="px-4 py-3 text-left font-semibold text-slate-600">DATE</th>'
     sortedBrands.forEach(b => {
-        theadRow.innerHTML += `<th class="px-6 py-3 text-center">${b}</th>`
+        // Use brand color for column header text for visual cues
+        const colorStyle = brandPalette[b] ? `style="color: ${brandPalette[b].border}"` : '';
+        theadRow.innerHTML += `<th class="px-4 py-3 text-center font-semibold" ${colorStyle}>${b}</th>`
     })
-    theadRow.innerHTML += '<th class="px-6 py-3 text-right rounded-tr-lg">Total</th>'
+    theadRow.innerHTML += '<th class="px-4 py-3 text-right font-bold text-slate-700">TOTAL</th>'
 
     tbody.innerHTML = ''
     
-    // Invertir orden para la tabla (hoy primero)
+    // Invert dates (newest first)
     ;[...sortedDates].reverse().forEach(date => {
         const tr = document.createElement('tr')
-        tr.className = "hover:bg-slate-50 transition-colors"
+        tr.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
         
-        let rowHtml = `<td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${date}</td>`
+        let rowHtml = `<td class="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap">${date}</td>`
         let total = 0
         
         sortedBrands.forEach(brand => {
             const count = pivot[date][brand] || 0
             total += count
-            const textClass = count === 0 ? 'text-slate-300' : 'text-slate-700 font-medium'
-            rowHtml += `<td class="px-6 py-4 text-center ${textClass}">${count > 0 ? count : '-'}</td>`
+            // Simpler styling for cells, closer to reference
+            const textClass = count === 0 ? 'text-slate-300' : 'text-slate-600 font-medium'
+            rowHtml += `<td class="px-4 py-4 text-center ${textClass}">${count > 0 ? count.toLocaleString() : '-'}</td>`
         })
         
-        rowHtml += `<td class="px-6 py-4 text-right font-bold text-indigo-600">${total}</td>`
+        rowHtml += `<td class="px-4 py-4 text-right font-black text-slate-800">${total.toLocaleString()}</td>`
         tr.innerHTML = rowHtml
         tbody.appendChild(tr)
     })
 
-    // --- RENDERIZADO GRÁFICO ---
+    // --- CHART RENDERING ---
     const chartCanvas = document.getElementById('chart');
     if (window.myChartInstance) {
         window.myChartInstance.destroy();
@@ -134,18 +130,21 @@ async function loadData() {
 
     const ctx = chartCanvas.getContext('2d')
     
+    // Create datasets in the sorted order (highest total volume first)
     const datasets = sortedBrands.map((brand, index) => {
         const style = getBrandColor(brand, index)
         return {
             label: brand,
             data: sortedDates.map(date => pivot[date][brand] || 0),
             borderColor: style.border,
-            backgroundColor: style.bg,
+            backgroundColor: style.bg, // Using higher opacity fills
             borderWidth: 2,
-            tension: 0.4,
+            tension: 0.35, // Slightly smoother curve
             fill: true,
-            pointRadius: 3,
-            pointHoverRadius: 6
+            pointRadius: 0, // Hide points by default like reference
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#ffffff',
+            pointBorderWidth: 3
         }
     })
 
@@ -158,47 +157,69 @@ async function loadData() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 20 } },
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Inter', sans-serif", size: 12 } }
+                    align: 'end', // Align legend to the right
+                    labels: { 
+                        usePointStyle: true, 
+                        boxWidth: 10, 
+                        padding: 20,
+                        font: { family: "'Inter', sans-serif", size: 13, weight: '500' },
+                        color: '#475569'
+                    }
                 },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleFont: { family: "'Inter', sans-serif", size: 13 },
-                    bodyFont: { family: "'Inter', sans-serif", size: 12 },
-                    padding: 10,
-                    cornerRadius: 8,
-                    displayColors: true
+                    // 4️⃣ TOOLTIP STYLING (White style like reference)
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#1e293b', // Slate 800
+                    bodyColor: '#334155', // Slate 700
+                    borderColor: '#e2e8f0', // Slate 200
+                    borderWidth: 1,
+                    padding: 12,
+                    boxPadding: 6,
+                    usePointStyle: true, // Use circles in tooltip
+                    titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
+                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                    
+                    // 5️⃣ CRITICAL: ORDER TOOLTIP ITEMS DESCENDING BY VALUE
+                    itemSort: function(a, b) {
+                        return b.raw - a.raw; // Sort by value descending
+                    }
                 }
             },
             scales: {
                 x: {
-                    grid: { display: false },
-                    ticks: { font: { family: "'Inter', sans-serif" } }
+                    grid: { display: false, drawBorder: false },
+                    ticks: { font: { family: "'Inter', sans-serif" }, color: '#94a3b8', maxRotation: 0 }
                 },
                 y: {
                     stacked: true,
-                    grid: { color: '#f1f5f9' },
+                    grid: { color: '#f1f5f9', drawBorder: false, borderDash: [5, 5] }, // Dashed grid lines
                     beginAtZero: true,
-                    border: { display: false }
+                    border: { display: false },
+                    ticks: { font: { family: "'Inter', sans-serif" }, color: '#94a3b8', padding: 10 }
                 }
             },
-            interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            interaction: { mode: 'nearest', axis: 'x', intersect: false },
+            elements: {
+                line: { borderJoinStyle: 'round' }
+            }
         }
     })
 
     const now = new Date()
-    lastUpdateLabel.textContent = `Actualizado: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+    lastUpdateLabel.textContent = `Updated: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`
 
     loader.classList.add('hidden')
     content.classList.remove('hidden')
 
   } catch (err) {
-    console.error("Error cargando dashboard:", err)
-    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola (F12).</p>`
+    console.error("Error loading dashboard:", err)
+    loader.innerHTML = `<p class="text-red-500">Error loading data. Check console (F12).</p>`
   }
 }
 
