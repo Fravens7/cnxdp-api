@@ -1,20 +1,16 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard CanX DP</title>
+  <title>CanX Analytics Dashboard</title>
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Fuente Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
     body { font-family: 'Inter', sans-serif; }
-    /* Scrollbar personalizada para la tabla */
     .custom-scroll::-webkit-scrollbar { height: 8px; }
     .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -23,7 +19,6 @@
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-  <!-- Navbar -->
   <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
@@ -32,7 +27,7 @@
           <span class="text-xl font-bold text-slate-800 tracking-tight">CanX Analytics</span>
         </div>
         <div class="flex items-center">
-          <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full" id="last-update">Actualizando...</span>
+          <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full" id="last-update">Updating...</span>
         </div>
       </div>
     </div>
@@ -40,46 +35,43 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
-    <!-- Header Sección -->
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900">Volumen Diario</h1>
-      <p class="text-slate-500 mt-1">Monitoreo de mensajes procesados por marca en los últimos días.</p>
+      <h1 class="text-2xl font-bold text-slate-900">Daily Volume Audit</h1>
+      <p class="text-slate-500 mt-1">Visualizing daily message volume movement by brand to identify trends.</p>
     </div>
 
-    <!-- Loader (se oculta cuando carga JS) -->
     <div id="loader" class="flex justify-center items-center h-64">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
     </div>
 
-    <!-- Contenido (Oculto inicialmente) -->
-    <div id="dashboard-content" class="hidden space-y-8">
+    <div id="dashboard-content" class="hidden space-y-6">
       
-      <!-- Sección Gráfico -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-lg font-semibold text-slate-800">Tendencia de Mensajes</h2>
-        </div>
-        <div class="relative h-[400px] w-full">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4">
+            <div>
+                 <h2 class="text-lg font-semibold text-slate-800">Daily Volume by Brand</h2>
+            </div>
+            </div>
+       
+        <div class="relative h-[450px] w-full">
           <canvas id="chart"></canvas>
         </div>
       </div>
 
-      <!-- Sección Tabla -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <h2 class="text-lg font-semibold text-slate-800">Detalle por Fecha</h2>
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+        <div class="px-6 py-4 border-b border-slate-100 bg-white">
+          <h2 class="text-lg font-semibold text-slate-800">Daily Breakdown</h2>
+          <p class="text-sm text-slate-500">Detailed volume count per day per brand.</p>
         </div>
         
-        <div class="overflow-x-auto custom-scroll">
+        <div class="overflow-x-auto custom-scroll p-2">
           <table class="w-full text-sm text-left" id="data-table">
-            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
               <tr id="table-header-row">
-                <!-- Se llena dinámicamente -->
-              </tr>
+                </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 text-slate-600" id="table-body">
-              <!-- Se llena dinámicamente -->
-            </tbody>
+              </tbody>
           </table>
         </div>
       </div>
@@ -87,9 +79,7 @@
     </div>
   </main>
 
-  <!-- Configuración de Supabase -->
   <script src="config.js"></script>
-  <!-- Lógica -->
   <script type="module" src="main.js"></script>
 </body>
 </html>
