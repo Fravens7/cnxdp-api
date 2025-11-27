@@ -7,20 +7,30 @@ async function loadData() {
     .from('messages')
     .select('date, brand')
 
-  if (error) { console.error(error); return }
+  if (error) {
+    console.error(error)
+    return
+  }
 
+  // Agrupar por fecha y brand
   const grouped = {}
   data.forEach(d => {
     const key = `${d.date}|${d.brand}`
     grouped[key] = (grouped[key] || 0) + 1
   })
 
-  // Tabla
+  // Llenar tabla
   const tbody = document.querySelector('#data-table tbody')
+  tbody.innerHTML = ''
   for (let key in grouped) {
     const [date, brand] = key.split('|')
     const tr = document.createElement('tr')
-    tr.innerHTML = `<td>${date}</td><td>${brand}</td><td>${grouped[key]}</td>`
+    tr.classList.add('hover:bg-gray-100')
+    tr.innerHTML = `
+      <td class="px-4 py-2">${date}</td>
+      <td class="px-4 py-2">${brand}</td>
+      <td class="px-4 py-2">${grouped[key]}</td>
+    `
     tbody.appendChild(tr)
   }
 
@@ -36,7 +46,12 @@ async function loadData() {
   new Chart(document.getElementById('chart'), {
     type: 'bar',
     data: { labels, datasets },
-    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' }
+      }
+    }
   })
 }
 
