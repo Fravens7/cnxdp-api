@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard Volumen Diario</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Volumen diario por Brand</h1>
+  <canvas id="chart" width="800" height="400"></canvas>
+  <table border="1" id="data-table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Brand</th>
+        <th>Total Mensajes</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const SUPABASE_URL = 'https://vbcdlzmfysefgubthppt.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZiY2Rsem1meXNlZmd1YnRocHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMjg0NDgsImV4cCI6MjA3OTgwNDQ0OH0.ZuzVgebJW-hQYQr2a7kacU5YvavzZ4B0VmqCAcXbl4o'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    async function loadData() {
+      // Traer conteo diario por brand
+      let { data, error } = await supabase
+        .from('messages')
+        .select('date, brand')
+      
+      if (error) { console.error(error); return }
+
+      // Agrupar por date y brand
+      const grouped = {}
+      data.forEach(d => {
+        const key = `${d.date}|${d.brand}`
+        grouped[key] = (grouped[key] || 0) + 1
+      })
+
+      // Tabla
+      const tbody = document.querySelector('#data-table tbody')
+      for (let key in grouped) {
+        const [date, brand] = key.split('|')
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td>${date}</td><td>${brand}</td><td>${grouped[key]}</td>`
+        tbody.appendChild(tr)
+      }
+
+      // Gráfico
+      const labels = [...new Set(data.map(d => d.date))].sort()
+      const brands = [...new Set(data.map(d => d.brand))]
+      const datasets = brands.map(brand => ({
+        label: brand,
+        data: labels.map(date => {
+          const key = `${date}|${brand}`
+          return grouped[key] || 0
+        }),
+        backgroundColor: '#' + Math.floor(Math.random()*16777215).toString(16)
+      }))
+
+      new Chart(document.getElementById('chart'), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'top' } } }
+      })
+    }
+
+    loadData()
+  </script>
+</body>
+</html>
