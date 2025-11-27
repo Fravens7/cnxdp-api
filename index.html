@@ -1,26 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+  <meta charset="UTF-8">
   <title>Dashboard Volumen Diario</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-  <h1>Volumen diario por Brand</h1>
-  <canvas id="chart" width="800" height="400"></canvas>
-  <table border="1" id="data-table">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Brand</th>
-        <th>Total Mensajes</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<body class="bg-gray-100 p-6">
 
+  <h1 class="text-2xl font-bold mb-4">Volumen diario por Brand</h1>
+
+  <!-- Gráfico -->
+  <div class="mb-8">
+    <canvas id="chart" width="800" height="400"></canvas>
+  </div>
+
+  <!-- Tabla -->
+  <div class="overflow-x-auto">
+    <table class="table-auto w-full bg-white shadow rounded" id="data-table">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="px-4 py-2">Fecha</th>
+          <th class="px-4 py-2">Brand</th>
+          <th class="px-4 py-2">Total Mensajes</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y"></tbody>
+    </table>
+  </div>
+
+  <!-- Configuración de Supabase -->
   <script src="config.js"></script>
-<script type="module" src="main.js"></script>
-
- 
+  <!-- Lógica del dashboard -->
+  <script type="module" src="main.js"></script>
 </body>
 </html>
