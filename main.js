@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
+// Asegúrate de que window.SUPABASE_CONFIG esté definido en tu config.js
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
 // --- CONFIGURACIÓN VISUAL ---
@@ -11,7 +12,7 @@ const brandPalette = {
   'B3': { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }, // Rosa
   'B4': { border: '#06b6d4', bg: 'rgba(6, 182, 212, 0.2)' },  // Cyan
   'M2': { border: '#6366f1', bg: 'rgba(99, 102, 241, 0.2)' }, // Indigo
-  'Otros': { border: '#94a3b8', bg: 'rgba(148, 163, 184, 0.2)' } // Gris
+  // Ya no necesitamos 'Otros' aquí porque lo filtramos en SQL
 }
 
 const defaultColors = ['#ef4444', '#f97316', '#84cc16', '#14b8a6']
@@ -23,8 +24,13 @@ function getBrandColor(brand, index) {
 }
 
 function formatDate(dateString) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
+  // Nota: dateString viene de SQL, ej: "2023-11-20T00:00:00"
+  const date = new Date(dateString) 
+  // Ajustamos zona horaria para evitar que cambie de día al convertir
+  const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+  const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+  
+  return adjustedDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
 }
 
 async function loadData() {
@@ -39,39 +45,44 @@ async function loadData() {
     const cutOffDate = new Date()
     cutOffDate.setDate(cutOffDate.getDate() - 15) // Últimos 15 días
 
-    // 2️⃣ CONSULTA A SUPABASE (CON LÍMITE AUMENTADO)
-    // El .limit(10000) es CRUCIAL. Sin él, Supabase solo devuelve 1000 filas.
+    // 2️⃣ CONSULTA A SUPABASE (AQUÍ ESTÁ EL CAMBIO IMPORTANTE)
+    // Cambiamos .from('messages') por .from('daily_brand_counts')
+    // Esta "vista" es super rápida y ya tiene los conteos hechos.
     let { data, error } = await supabase
-      .from('messages')
-      .select('date, brand')
-      .gte('date', cutOffDate.toISOString())
-      .order('date', { ascending: true })
-      .limit(10000) 
+      .from('daily_brand_counts') 
+      .select('*') // Trae: day, brand, total_count
+      .gte('day', cutOffDate.toISOString())
+      .order('day', { ascending: true })
+      // NOTA: Ya no necesitamos .limit(10000) porque esto devuelve pocas filas
 
     if (error) throw error
 
-    console.log(`✅ Datos recibidos: ${data.length} filas`) // Verifica esto en la consola (F12)
+    console.log(`✅ Datos recibidos: ${data.length} filas (Resumen agrupado)`)
 
     // --- PROCESAMIENTO DE DATOS ---
     const pivot = {}
     const brandsSet = new Set()
     
+    // Aquí el procesamiento es más sencillo porque SQL ya contó los mensajes
     data.forEach(d => {
-      if (!d.brand) d.brand = "Otros"
-      brandsSet.add(d.brand)
+      // En la vista SQL la columna de fecha se llama 'day'
+      const date = formatDate(d.day) 
+      const brand = d.brand
+      const count = d.total_count // Este número ya viene calculado de SQL
+
+      brandsSet.add(brand)
       
-      const date = formatDate(d.date)
       if (!pivot[date]) pivot[date] = {}
       
-      pivot[date][d.brand] = (pivot[date][d.brand] || 0) + 1
+      // Simplemente asignamos el valor que vino de la base de datos
+      pivot[date][brand] = count
     })
 
-    const knownBrands = Object.keys(brandPalette).filter(b => b !== 'Otros')
+    const knownBrands = Object.keys(brandPalette)
     const foundBrands = Array.from(brandsSet)
     
+    // Ordenar marcas
     const sortedBrands = foundBrands.sort((a, b) => {
-        if (a === 'Otros') return 1;
-        if (b === 'Otros') return -1;
         const aKnown = knownBrands.includes(a);
         const bKnown = knownBrands.includes(b);
         if (aKnown && !bKnown) return -1;
@@ -114,7 +125,6 @@ async function loadData() {
     })
 
     // --- RENDERIZADO GRÁFICO ---
-    // Destruir gráfico anterior si existe para evitar superposiciones al recargar
     const chartCanvas = document.getElementById('chart');
     if (window.myChartInstance) {
         window.myChartInstance.destroy();
@@ -186,7 +196,7 @@ async function loadData() {
 
   } catch (err) {
     console.error("Error cargando dashboard:", err)
-    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola (F12).</p>`
+    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola (F12) para más detalles.</p>`
   }
 }
 
