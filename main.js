@@ -1,18 +1,18 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-// Asegúrate de que window.SUPABASE_CONFIG esté definido en tu config.js
+// Asegúrate de tener config.js cargado antes en el HTML
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
 // --- CONFIGURACIÓN VISUAL ---
 const brandPalette = {
-  'M1': { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' }, // Azul
-  'K1': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, // Verde Esmeralda
-  'B1': { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' }, // Ambar
-  'B2': { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' }, // Violeta
-  'B3': { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }, // Rosa
-  'B4': { border: '#06b6d4', bg: 'rgba(6, 182, 212, 0.2)' },  // Cyan
-  'M2': { border: '#6366f1', bg: 'rgba(99, 102, 241, 0.2)' }, // Indigo
-  // Ya no necesitamos 'Otros' aquí porque lo filtramos en SQL
+  'M1': { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' }, 
+  'K1': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, 
+  'B1': { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)' }, 
+  'B2': { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' }, 
+  'B3': { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }, 
+  'B4': { border: '#06b6d4', bg: 'rgba(6, 182, 212, 0.2)' },  
+  'M2': { border: '#6366f1', bg: 'rgba(99, 102, 241, 0.2)' }, 
+  // Nota: Ya no definimos 'Otros' porque los vamos a ocultar
 }
 
 const defaultColors = ['#ef4444', '#f97316', '#84cc16', '#14b8a6']
@@ -24,12 +24,10 @@ function getBrandColor(brand, index) {
 }
 
 function formatDate(dateString) {
-  // Nota: dateString viene de SQL, ej: "2023-11-20T00:00:00"
-  const date = new Date(dateString) 
-  // Ajustamos zona horaria para evitar que cambie de día al convertir
+  // Ajuste para evitar problemas de zona horaria al formatear
+  const date = new Date(dateString)
   const userTimezoneOffset = date.getTimezoneOffset() * 60000;
   const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-  
   return adjustedDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
 }
 
@@ -41,40 +39,44 @@ async function loadData() {
   try {
     console.log("🔄 Iniciando carga de datos...")
 
-    // 1️⃣ DEFINIR FECHA DE CORTE
     const cutOffDate = new Date()
     cutOffDate.setDate(cutOffDate.getDate() - 15) // Últimos 15 días
 
-    // 2️⃣ CONSULTA A SUPABASE (AQUÍ ESTÁ EL CAMBIO IMPORTANTE)
-    // Cambiamos .from('messages') por .from('daily_brand_counts')
-    // Esta "vista" es super rápida y ya tiene los conteos hechos.
+    // ---------------------------------------------------------
+    // 1️⃣ CAMBIO CRUCIAL: CONSULTAMOS LA VISTA SQL, NO LA TABLA
+    // ---------------------------------------------------------
     let { data, error } = await supabase
-      .from('daily_brand_counts') 
-      .select('*') // Trae: day, brand, total_count
+      .from('daily_brand_counts') // <--- Aquí usamos la vista que creaste
+      .select('*')                // Traemos: day, brand, total_count
       .gte('day', cutOffDate.toISOString())
       .order('day', { ascending: true })
-      // NOTA: Ya no necesitamos .limit(10000) porque esto devuelve pocas filas
 
     if (error) throw error
 
-    console.log(`✅ Datos recibidos: ${data.length} filas (Resumen agrupado)`)
+    // ---------------------------------------------------------
+    // 2️⃣ FILTRO: Ocultar SYSTEM y Otros
+    // ---------------------------------------------------------
+    // Aquí es donde borramos lo que no quieres ver antes de graficar
+    const cleanData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
+
+    console.log(`✅ Datos recibidos: ${cleanData.length} filas (Resumen optimizado)`) 
 
     // --- PROCESAMIENTO DE DATOS ---
     const pivot = {}
     const brandsSet = new Set()
     
-    // Aquí el procesamiento es más sencillo porque SQL ya contó los mensajes
-    data.forEach(d => {
-      // En la vista SQL la columna de fecha se llama 'day'
+    cleanData.forEach(d => {
+      // Nota los cambios de nombre: d.day en vez de d.date
       const date = formatDate(d.day) 
       const brand = d.brand
-      const count = d.total_count // Este número ya viene calculado de SQL
+      
+      // 3️⃣ USAMOS EL CONTEO QUE YA HIZO SQL
+      // Ya no sumamos +1, usamos el número real que viene de la base de datos
+      const count = d.total_count 
 
       brandsSet.add(brand)
       
       if (!pivot[date]) pivot[date] = {}
-      
-      // Simplemente asignamos el valor que vino de la base de datos
       pivot[date][brand] = count
     })
 
@@ -196,7 +198,7 @@ async function loadData() {
 
   } catch (err) {
     console.error("Error cargando dashboard:", err)
-    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola (F12) para más detalles.</p>`
+    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola (F12).</p>`
   }
 }
 
