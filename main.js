@@ -65,7 +65,6 @@ function renderDateSelector() {
 
         const btn = document.createElement('button');
         
-        // CORRECCIÓN 4: Diseño más compacto (menos padding, texto más pequeño)
         let classes = "flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all min-w-[55px] ";
         
         if (isDisabled) {
@@ -92,14 +91,12 @@ function renderDateSelector() {
     }
 }
 
-// --- LÓGICA DE SELECCIÓN INTELIGENTE (1, 2, 3...) ---
+// --- LÓGICA DE SELECCIÓN INTELIGENTE ---
 function handleDateClick(dateKey) {
     if (!selectedStart) {
-        // Primer click
         selectedStart = dateKey;
         selectedEnd = null;
     } else if (!selectedEnd) {
-        // Segundo click
         if (dateKey < selectedStart) {
             selectedEnd = selectedStart;
             selectedStart = dateKey;
@@ -107,23 +104,16 @@ function handleDateClick(dateKey) {
             selectedEnd = dateKey;
         }
     } else {
-        // CORRECCIÓN 2: Lógica extendida (Tercer click en adelante)
-        // Si ya hay rango, intentamos extenderlo en lugar de resetearlo bruscamente
-        
         if (dateKey > selectedEnd) {
-            // Extender a la derecha (ej: tenías 20-21, click en 22 -> ahora 20-22)
             selectedEnd = dateKey;
         } else if (dateKey < selectedStart) {
-            // Extender a la izquierda
             selectedStart = dateKey;
         } else {
-            // Si hace click ADENTRO del rango, asumimos que quiere corregir/reiniciar
             selectedStart = dateKey;
             selectedEnd = null;
         }
     }
     
-    // Si solo hay start, end es igual start para filtrado
     const effectiveEnd = selectedEnd || selectedStart;
     
     renderDateSelector();
@@ -211,7 +201,6 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             borderWidth: 2,
             tension: 0.35,
             fill: true,
-            // Puntos visibles siempre, pero más grandes al hacer hover
             pointRadius: 4, 
             pointHoverRadius: 7,
             pointBackgroundColor: '#ffffff',
@@ -220,7 +209,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
     })
 
     chartInstance = new Chart(ctx, {
-        type: 'line', // CORRECCIÓN 1: Siempre Line Chart
+        type: 'line', 
         data: { labels: sortedDates, datasets: datasets },
         options: {
             responsive: true,
@@ -231,12 +220,12 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
-                    backgroundColor: 'rgba(255, 255, 255, 0.98)', // Fondo casi sólido
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)', 
                     titleColor: '#0f172a',
                     bodyColor: '#334155',
                     borderColor: '#e2e8f0',
                     borderWidth: 1,
-                    padding: 12, // CORRECCIÓN 3: Más padding
+                    padding: 12, 
                     bodySpacing: 4,
                     usePointStyle: true,
                     titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
@@ -244,15 +233,13 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
-                            // CORRECCIÓN 3: Limpieza total (solo Nombre: Valor)
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
                                 label += context.parsed.y.toLocaleString();
                             }
                             return label;
-                        },
-                        // CORRECCIÓN 3: Eliminado el footer (Daily Total)
+                        }
                     }
                 }
             },
@@ -260,7 +247,6 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                 x: { 
                     grid: { display: false }, 
                     ticks: { maxRotation: 0, font: { family: "'Inter', sans-serif" } },
-                    // CORRECCIÓN 1: Esto arregla la "distorsión" visual cuando hay 1 solo dato
                     offset: true 
                 },
                 y: { 
@@ -294,7 +280,8 @@ async function loadData() {
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-    selectedStart = '2025-11-26';
+    // --- CAMBIO AQUÍ: RANGO COMPLETO POR DEFECTO ---
+    selectedStart = '2025-11-20';
     selectedEnd = '2025-11-27';
 
     renderDateSelector();
