@@ -2,6 +2,13 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
+// Función para formatear fechas: "2025-07-14 00:00:00+00" → "Jul 14"
+function formatDate(dateString) {
+  const date = new Date(dateString)
+  const options = { month: 'short', day: 'numeric' } // ej: "Jul 14"
+  return date.toLocaleDateString('en-US', options)
+}
+
 async function loadData() {
   let { data, error } = await supabase
     .from('messages')
@@ -17,7 +24,7 @@ async function loadData() {
   const brandsSet = new Set()
   data.forEach(d => {
     brandsSet.add(d.brand)
-    const date = d.date
+    const date = formatDate(d.date) // <- formateo aquí
     if (!pivot[date]) pivot[date] = {}
     pivot[date][d.brand] = (pivot[date][d.brand] || 0) + 1
   })
@@ -28,7 +35,7 @@ async function loadData() {
   const tbody = document.querySelector('#data-table tbody')
   tbody.innerHTML = ''
 
-  Object.keys(pivot).sort().forEach(date => {
+  Object.keys(pivot).sort((a,b)=>new Date(a)-new Date(b)).forEach(date => {
     const tr = document.createElement('tr')
     tr.classList.add('hover:bg-gray-100')
 
@@ -55,7 +62,7 @@ async function loadData() {
   thead.innerHTML += '<th class="px-4 py-2">Total</th>'
 
   // 4️⃣ Gráfico Stacked Area (igual que antes)
-  const labels = Object.keys(pivot).sort()
+  const labels = Object.keys(pivot).sort((a,b)=>new Date(a)-new Date(b)) // <- labels con formato
   const datasets = brands.map(brand => ({
     label: brand,
     data: labels.map(date => pivot[date][brand] || 0),
