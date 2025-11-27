@@ -21,9 +21,8 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    const SUPABASE_URL = 'https://vbcdlzmfysefgubthppt.supabase.co'
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZiY2Rsem1meXNlZmd1YnRocHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMjg0NDgsImV4cCI6MjA3OTgwNDQ0OH0.ZuzVgebJW-hQYQr2a7kacU5YvavzZ4B0VmqCAcXbl4o'
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+    const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
+
 
     async function loadData() {
       // Traer conteo diario por brand
