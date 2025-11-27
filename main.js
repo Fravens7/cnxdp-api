@@ -3,7 +3,6 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
 // --- CONFIGURACIÓN VISUAL ---
-// Paleta de colores fija para consistencia visual
 const brandPalette = {
   'M1': { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.2)' }, // Azul
   'K1': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.2)' }, // Verde Esmeralda
@@ -19,9 +18,8 @@ const defaultColors = ['#ef4444', '#f97316', '#84cc16', '#14b8a6']
 
 function getBrandColor(brand, index) {
   if (brandPalette[brand]) return brandPalette[brand]
-  // Si no existe, asignar uno rotativo
   const color = defaultColors[index % defaultColors.length]
-  return { border: color, bg: color + '33' } // Agrega transparencia
+  return { border: color, bg: color + '33' }
 }
 
 function formatDate(dateString) {
@@ -35,28 +33,31 @@ async function loadData() {
   const lastUpdateLabel = document.getElementById('last-update')
 
   try {
-    // 1️⃣ DEFINIR FECHA DE CORTE (Optimización)
-    // Traemos solo los últimos 15 días para que la carga sea rápida y relevante
-    const cutOffDate = new Date()
-    cutOffDate.setDate(cutOffDate.getDate() - 15)
+    console.log("🔄 Iniciando carga de datos...")
 
-    // 2️⃣ CONSULTA A SUPABASE (CORRECCIÓN APLICADA)
+    // 1️⃣ DEFINIR FECHA DE CORTE
+    const cutOffDate = new Date()
+    cutOffDate.setDate(cutOffDate.getDate() - 15) // Últimos 15 días
+
+    // 2️⃣ CONSULTA A SUPABASE (CON LÍMITE AUMENTADO)
+    // El .limit(10000) es CRUCIAL. Sin él, Supabase solo devuelve 1000 filas.
     let { data, error } = await supabase
       .from('messages')
       .select('date, brand')
-      .gte('date', cutOffDate.toISOString()) // Filtro: Solo desde hace 15 días
+      .gte('date', cutOffDate.toISOString())
       .order('date', { ascending: true })
-      .limit(10000) // <--- ¡AQUÍ ESTÁ LA SOLUCIÓN! Subimos el límite de 1000 a 10000
+      .limit(10000) 
 
     if (error) throw error
+
+    console.log(`✅ Datos recibidos: ${data.length} filas`) // Verifica esto en la consola (F12)
 
     // --- PROCESAMIENTO DE DATOS ---
     const pivot = {}
     const brandsSet = new Set()
     
-    // Filtrar fechas inválidas y pivotear
     data.forEach(d => {
-      if (!d.brand) d.brand = "Otros" // Normalizar nulos
+      if (!d.brand) d.brand = "Otros"
       brandsSet.add(d.brand)
       
       const date = formatDate(d.date)
@@ -65,7 +66,6 @@ async function loadData() {
       pivot[date][d.brand] = (pivot[date][d.brand] || 0) + 1
     })
 
-    // Ordenar marcas: Primero las conocidas, luego el resto, "Otros" al final
     const knownBrands = Object.keys(brandPalette).filter(b => b !== 'Otros')
     const foundBrands = Array.from(brandsSet)
     
@@ -79,24 +79,21 @@ async function loadData() {
         return a.localeCompare(b);
     });
 
-    const sortedDates = Object.keys(pivot) // Vienen ordenados por la query SQL
+    const sortedDates = Object.keys(pivot)
 
     // --- RENDERIZADO TABLA ---
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
     
-    // Header
     theadRow.innerHTML = '<th class="px-6 py-3 rounded-tl-lg">Fecha</th>'
     sortedBrands.forEach(b => {
         theadRow.innerHTML += `<th class="px-6 py-3 text-center">${b}</th>`
     })
     theadRow.innerHTML += '<th class="px-6 py-3 text-right rounded-tr-lg">Total</th>'
 
-    // Body
     tbody.innerHTML = ''
     
-    // Invertimos el orden SOLO para la tabla (para ver hoy primero)
-    // Usamos [...sortedDates] para crear una copia y no afectar el orden del gráfico
+    // Invertir orden para la tabla (hoy primero)
     ;[...sortedDates].reverse().forEach(date => {
         const tr = document.createElement('tr')
         tr.className = "hover:bg-slate-50 transition-colors"
@@ -107,7 +104,6 @@ async function loadData() {
         sortedBrands.forEach(brand => {
             const count = pivot[date][brand] || 0
             total += count
-            // Resaltar ceros en gris claro
             const textClass = count === 0 ? 'text-slate-300' : 'text-slate-700 font-medium'
             rowHtml += `<td class="px-6 py-4 text-center ${textClass}">${count > 0 ? count : '-'}</td>`
         })
@@ -118,7 +114,13 @@ async function loadData() {
     })
 
     // --- RENDERIZADO GRÁFICO ---
-    const ctx = document.getElementById('chart').getContext('2d')
+    // Destruir gráfico anterior si existe para evitar superposiciones al recargar
+    const chartCanvas = document.getElementById('chart');
+    if (window.myChartInstance) {
+        window.myChartInstance.destroy();
+    }
+
+    const ctx = chartCanvas.getContext('2d')
     
     const datasets = sortedBrands.map((brand, index) => {
         const style = getBrandColor(brand, index)
@@ -128,17 +130,17 @@ async function loadData() {
             borderColor: style.border,
             backgroundColor: style.bg,
             borderWidth: 2,
-            tension: 0.4, // Curvas suaves
-            fill: true,   // Área rellena
+            tension: 0.4,
+            fill: true,
             pointRadius: 3,
             pointHoverRadius: 6
         }
     })
 
-    new Chart(ctx, {
+    window.myChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: sortedDates, // Gráfico mantiene orden cronológico (Izq -> Der)
+            labels: sortedDates,
             datasets: datasets
         },
         options: {
@@ -147,11 +149,7 @@ async function loadData() {
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        boxWidth: 8,
-                        font: { family: "'Inter', sans-serif", size: 12 }
-                    }
+                    labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Inter', sans-serif", size: 12 } }
                 },
                 tooltip: {
                     mode: 'index',
@@ -166,35 +164,29 @@ async function loadData() {
             },
             scales: {
                 x: {
-                    grid: { display: false }, // Ocultar grilla vertical
+                    grid: { display: false },
                     ticks: { font: { family: "'Inter', sans-serif" } }
                 },
                 y: {
-                    stacked: true, // Gráfico apilado
+                    stacked: true,
                     grid: { color: '#f1f5f9' },
                     beginAtZero: true,
-                    border: { display: false } // Ocultar línea del eje Y
+                    border: { display: false }
                 }
             },
-            interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false
-            }
+            interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     })
 
-    // Actualizar timestamp
     const now = new Date()
     lastUpdateLabel.textContent = `Actualizado: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
 
-    // Mostrar dashboard
     loader.classList.add('hidden')
     content.classList.remove('hidden')
 
   } catch (err) {
     console.error("Error cargando dashboard:", err)
-    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola.</p>`
+    loader.innerHTML = `<p class="text-red-500">Error al cargar los datos. Revisa la consola (F12).</p>`
   }
 }
 
