@@ -15,9 +15,11 @@ const brandPalette = {
 const defaultColors = ['#64748b', '#94a3b8', '#cbd5e1']
 
 // VARIABLES GLOBALES PARA ESTADO
-let globalData = []; // Aquí guardaremos los datos de Supabase
+let globalData = [];
 let selectedStart = null;
 let selectedEnd = null;
+// Guardamos la referencia al gráfico para destruirlo y recrearlo si cambiamos de tipo
+let chartInstance = null; 
 
 // --- FUNCIONES UTILITARIAS ---
 function getBrandColor(brand, index) {
@@ -27,7 +29,6 @@ function getBrandColor(brand, index) {
 }
 
 function formatDateKey(dateObj) {
-  // Formato YYYY-MM-DD para comparaciones internas
   return dateObj.toISOString().split('T')[0];
 }
 
@@ -38,51 +39,44 @@ function formatDisplayDate(dateString) {
   return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// --- LÓGICA DEL SELECTOR DE FECHAS (Aquí está la magia) ---
+// --- LÓGICA DEL SELECTOR DE FECHAS (Corregida) ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
     container.innerHTML = '';
 
-    // 1. CONFIGURACIÓN DE FECHAS
-    // Generamos desde el 17 (visual) hasta el 27
     const startDate = new Date('2025-11-17'); 
     const endDate = new Date('2025-11-27');
-    const validDataStart = new Date('2025-11-20'); // Antes de esto, disable
+    const validDataStart = new Date('2025-11-20');
 
     let currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-        const dateKey = formatDateKey(currentDate); // "2025-11-17"
+        const dateKey = formatDateKey(currentDate);
         const displayDay = currentDate.getDate();
         const displayMonth = currentDate.toLocaleDateString('en-US', { month: 'short' });
         const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
         
-        // Verificar si es un día "sin datos" (disable)
         const isDisabled = currentDate < validDataStart;
         
-        // Verificar si está seleccionado
         let isSelected = false;
         if (selectedStart && selectedEnd) {
+             // Si hay rango completo, se selecciona todo lo que esté dentro
              isSelected = dateKey >= selectedStart && dateKey <= selectedEnd;
         } else if (selectedStart) {
+             // Si solo hay inicio, se selecciona solo ese día
              isSelected = dateKey === selectedStart;
         }
 
-        // CREAR EL BOTÓN
         const btn = document.createElement('button');
         
-        // Estilos base
         let classes = "flex flex-col items-center justify-center px-4 py-2 rounded-lg border transition-all text-sm min-w-[70px] ";
         
         if (isDisabled) {
-            // ESTILO DESHABILITADO (Gris claro, no click)
             classes += "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60";
             btn.disabled = true;
         } else if (isSelected) {
-            // ESTILO SELECCIONADO (Azul fuerte)
             classes += "bg-indigo-600 border-indigo-600 text-white shadow-md transform scale-105 font-bold";
         } else {
-            // ESTILO DISPONIBLE (Blanco hover azulito)
             classes += "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50";
         }
         
@@ -92,52 +86,50 @@ function renderDateSelector() {
             <span class="text-lg font-bold leading-none">${displayDay}</span>
         `;
 
-        // EVENTO CLICK
         if (!isDisabled) {
             btn.onclick = () => handleDateClick(dateKey);
         }
 
         container.appendChild(btn);
-        
-        // Avanzar un día
         currentDate.setDate(currentDate.getDate() + 1);
     }
 }
 
+// Lógica de selección de rango estándar
 function handleDateClick(dateKey) {
     if (!selectedStart || (selectedStart && selectedEnd)) {
-        // Nuevo inicio (si no había nada o ya había un rango completo)
+        // Caso 1: No hay selección previa O ya hay un rango completo seleccionado.
+        // Acción: Reiniciar la selección. La fecha clicada es el nuevo inicio.
         selectedStart = dateKey;
         selectedEnd = null;
+    } else if (dateKey < selectedStart) {
+         // Caso 2: Hay un inicio, y se hace clic en una fecha ANTERIOR.
+         // Acción: La fecha anterior se convierte en el nuevo inicio, la fecha que era inicio pasa a ser fin.
+         // (Esto permite seleccionar rangos "hacia atrás")
+        selectedEnd = selectedStart;
+        selectedStart = dateKey;
     } else {
-        // Completar rango
-        if (dateKey < selectedStart) {
-            selectedEnd = selectedStart;
-            selectedStart = dateKey;
-        } else {
-            selectedEnd = dateKey;
-        }
+        // Caso 3: Hay un inicio, y se hace clic en una fecha POSTERIOR.
+        // Acción: La fecha clicada se convierte en el fin del rango.
+        selectedEnd = dateKey;
     }
     
-    // Si solo hay inicio, el fin es el mismo día (selección de 1 día)
+    // Si solo hay inicio (no se ha hecho el segundo clic), el fin es el mismo día.
     const effectiveEnd = selectedEnd || selectedStart;
     
-    renderDateSelector(); // Re-pintar botones
-    updateDashboard(selectedStart, effectiveEnd); // Filtrar datos
+    renderDateSelector();
+    updateDashboard(selectedStart, effectiveEnd);
 }
 
 // --- FILTRADO Y ACTUALIZACIÓN ---
 function updateDashboard(startKey, endKey) {
-    console.log(`🔎 Filtrando de ${startKey} a ${endKey}`);
+    // 1. Eliminados logs de consola
 
-    // 1. Filtrar los datos globales en memoria
     const filteredData = globalData.filter(d => {
-        // d.day viene como "2025-11-20T00:00..."
         const itemDate = d.day.split('T')[0];
         return itemDate >= startKey && itemDate <= endKey;
     });
 
-    // 2. Procesar para Gráfica y Tabla (Igual que antes)
     const pivot = {}
     const brandsSet = new Set()
     const brandTotals = {}
@@ -154,16 +146,13 @@ function updateDashboard(startKey, endKey) {
     })
 
     const sortedBrands = Array.from(brandsSet).sort((a, b) => brandTotals[b] - brandTotals[a]);
-    const sortedDates = Object.keys(pivot) // Fechas que quedaron tras el filtro
+    const sortedDates = Object.keys(pivot)
 
-    // 3. Renderizar Tabla
     renderTable(sortedBrands, sortedDates, pivot);
-
-    // 4. Renderizar Gráfico
     renderChart(sortedBrands, sortedDates, pivot);
 }
 
-// --- RENDERIZADORES SEPARADOS ---
+// --- RENDERIZADORES ---
 function renderTable(sortedBrands, sortedDates, pivot) {
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
@@ -201,9 +190,18 @@ function renderTable(sortedBrands, sortedDates, pivot) {
 
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
-    if (window.myChartInstance) window.myChartInstance.destroy();
+    
+    // IMPORTANTE: Si existe una instancia previa, la destruimos antes de crear la nueva.
+    // Esto es necesario porque podríamos cambiar el tipo de gráfico.
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
 
     const ctx = chartCanvas.getContext('2d')
+    
+    // 2. Determinamos el tipo de gráfico: 'bar' para un día, 'line' para varios.
+    const chartType = sortedDates.length === 1 ? 'bar' : 'line';
+
     const datasets = sortedBrands.map((brand, index) => {
         const style = getBrandColor(brand, index)
         return {
@@ -212,15 +210,19 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             borderColor: style.border,
             backgroundColor: style.bg,
             borderWidth: 2,
-            tension: 0.35,
+            // Opciones específicas según el tipo de gráfico
+            tension: chartType === 'line' ? 0.35 : 0,
             fill: true,
-            pointRadius: sortedDates.length === 1 ? 6 : 0, // Si es 1 día, mostramos puntos
-            pointHoverRadius: 8
+            pointRadius: chartType === 'line' ? 0 : 0, // Ocultamos puntos en ambos casos para limpieza
+            pointHoverRadius: 6,
+            // Ajuste para que las barras no sean demasiado anchas si es un solo día
+            barPercentage: chartType === 'bar' ? 0.3 : 0.9, 
+            categoryPercentage: chartType === 'bar' ? 0.5 : 0.8
         }
     })
 
-    window.myChartInstance = new Chart(ctx, {
-        type: 'line',
+    chartInstance = new Chart(ctx, {
+        type: chartType,
         data: { labels: sortedDates, datasets: datasets },
         options: {
             responsive: true,
@@ -238,15 +240,11 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
+                            // 3. Se eliminó el cálculo de porcentajes. Solo muestra valor absoluto.
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
-                                const value = context.parsed.y;
-                                const total = context.chart.data.datasets.reduce((sum, dataset) => {
-                                    return dataset.hidden ? sum : sum + (dataset.data[context.dataIndex] || 0);
-                                }, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                                label += value.toLocaleString() + ` (${percentage})`;
+                                label += context.parsed.y.toLocaleString();
                             }
                             return label;
                         },
@@ -261,8 +259,17 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                 }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { maxRotation: 0 } },
-                y: { stacked: true, beginAtZero: true, border: { display: false }, grid: { borderDash: [5, 5] } }
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { maxRotation: 0 },
+                    stacked: true // Asegura que las barras se apilen
+                },
+                y: { 
+                    stacked: true, // Asegura que las barras/líneas se apilen
+                    beginAtZero: true, 
+                    border: { display: false }, 
+                    grid: { borderDash: [5, 5] } 
+                }
             },
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
@@ -276,10 +283,9 @@ async function loadData() {
   const lastUpdateLabel = document.getElementById('last-update')
 
   try {
-    console.log("🔄 Starting data load...")
+    // 1. Eliminados logs de consola
 
-    // 1️⃣ Pedimos TODO (Nov 20 en adelante)
-    const cutOffDate = new Date('2025-11-20') // Tu fecha mínima real
+    const cutOffDate = new Date('2025-11-20')
     
     let { data, error } = await supabase
       .from('daily_brand_counts') 
@@ -289,17 +295,15 @@ async function loadData() {
 
     if (error) throw error
 
-    // 2️⃣ Guardamos en variable global y filtramos SYSTEM
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
-    console.log(`✅ Data loaded: ${globalData.length} rows`)
+    // 1. Eliminados logs de consola
 
-    // 3️⃣ INICIALIZAR VISTA
-    // Por defecto mostramos todo el rango disponible
-    selectedStart = '2025-11-20';
+    // Selección inicial por defecto: últimos 2 días disponibles
+    selectedStart = '2025-11-26';
     selectedEnd = '2025-11-27';
 
-    renderDateSelector(); // Dibuja los botones (incluyendo los disabled 17-19)
-    updateDashboard(selectedStart, selectedEnd); // Dibuja Gráfico y Tabla
+    renderDateSelector();
+    updateDashboard(selectedStart, selectedEnd);
 
     const now = new Date()
     lastUpdateLabel.textContent = `Updated: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`
@@ -307,7 +311,7 @@ async function loadData() {
     content.classList.remove('hidden')
 
   } catch (err) {
-    console.error("Error loading dashboard:", err)
+    console.error("Error loading dashboard:", err) // Este log de error es útil mantenerlo
     loader.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`
   }
 }
