@@ -232,7 +232,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
-                         label: function(context) {
+                          label: function(context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
@@ -261,7 +261,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
     })
 }
 
-// --- CARGA INICIAL ---
+// --- CARGA INICIAL (MODIFICADA CON CONSOLE LOG) ---
 async function loadData() {
   const loader = document.getElementById('loader')
   const content = document.getElementById('dashboard-content')
@@ -270,6 +270,7 @@ async function loadData() {
   try {
     const cutOffDate = new Date('2025-11-20')
     
+    // 1. OBTENER DATOS DE LA GRÁFICA (Resumidos)
     let { data, error } = await supabase
       .from('daily_brand_counts') 
       .select('*')
@@ -280,7 +281,34 @@ async function loadData() {
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-    // --- CAMBIO AQUÍ: RANGO COMPLETO POR DEFECTO ---
+    // 2. NUEVO: OBTENER EL ÚLTIMO MENSAJE REAL PARA DIAGNÓSTICO
+    try {
+        const { data: lastMsgData } = await supabase
+            .from('messages')
+            .select('brand, extra1, date, id')
+            .order('date', { ascending: false }) // El más reciente primero
+            .limit(1); // Solo uno
+
+        if (lastMsgData && lastMsgData.length > 0) {
+            const lastMsg = lastMsgData[0];
+            const msgDate = new Date(lastMsg.date);
+            // Formato legible de fecha
+            const formattedDate = msgDate.toLocaleString('es-ES', { 
+                day: '2-digit', month: '2-digit', year: 'numeric', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit' 
+            });
+
+            // Imprimir en consola con fondo VERDE
+            console.log(
+                `%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
+                'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
+            );
+        }
+    } catch (syncErr) {
+        console.warn("No se pudo obtener el log de sincronización:", syncErr);
+    }
+
+    // --- CONTINUAR CARGA VISUAL ---
     selectedStart = '2025-11-20';
     selectedEnd = '2025-11-27';
 
