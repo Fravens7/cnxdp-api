@@ -17,7 +17,6 @@ const defaultColors = ['#64748b', '#94a3b8', '#cbd5e1']
 // VARIABLES GLOBALES
 let globalData = [];
 let maxAvailableDate = ''; 
-// CAMBIO IMPORTANTE: Usamos un Set para guardar fechas individuales, no un rango start/end
 let selectedDates = new Set(); 
 let chartInstance = null; 
 
@@ -39,12 +38,28 @@ function formatDisplayDate(dateString) {
   return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// --- RENDERIZADO DEL SELECTOR (MULTIPLE + DICIEMBRE) ---
+// --- CONFIGURACIÓN DE LAS FLECHAS DEL CARRUSEL ---
+function setupScrollArrows() {
+    const container = document.getElementById('date-selector-container');
+    const leftBtn = document.getElementById('scroll-left-btn');
+    const rightBtn = document.getElementById('scroll-right-btn');
+
+    if(leftBtn && rightBtn && container) {
+        leftBtn.onclick = () => {
+            container.scrollBy({ left: -200, behavior: 'smooth' });
+        };
+        rightBtn.onclick = () => {
+            container.scrollBy({ left: 200, behavior: 'smooth' });
+        };
+    }
+}
+
+// --- RENDERIZADO DEL SELECTOR (CARRUSEL 1 LÍNEA) ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
     container.innerHTML = '';
 
-    // CAMBIO 1: Rango visual extendido hasta Diciembre (ej: 5 Dic)
+    // Rango extendido hasta 5 Dic
     const startDate = new Date('2025-11-17'); 
     const endDate = new Date('2025-12-05'); 
 
@@ -53,36 +68,29 @@ function renderDateSelector() {
     while (currentDate <= endDate) {
         const dateKey = formatDateKey(currentDate);
         const displayDay = currentDate.getDate();
-        // month: 'short' mostrará "Nov" o "Dec" automáticamente
         const displayMonth = currentDate.toLocaleDateString('en-US', { month: 'short' });
         const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
         
-        // Lógica de disponibilidad (Datos reales existen)
         const validDataStart = '2025-11-20';
         const hasData = dateKey >= validDataStart && dateKey <= maxAvailableDate;
-        
-        // CAMBIO 2: Verificar si está en el Set de seleccionados
         const isSelected = selectedDates.has(dateKey);
 
         const btn = document.createElement('button');
         
-        let classes = "flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all min-w-[55px] ";
+        // CAMBIO CRUCIAL: 'flex-shrink-0' evita que los botones se aplasten
+        let classes = "flex-shrink-0 flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all w-[55px] ";
         
         if (!hasData) {
-            // OFF / FUTURO
             classes += "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50";
             btn.disabled = true;
         } else if (isSelected) {
-            // ON (Seleccionado)
             classes += "bg-indigo-600 border-indigo-600 text-white shadow-sm font-semibold transform scale-105";
         } else {
-            // DISPONIBLE PERO NO SELECCIONADO (Grisaceo)
             classes += "bg-white border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-indigo-50";
         }
         
         btn.className = classes;
         
-        // Mostramos el Mes si es día 1 para dar contexto de cambio de mes
         const monthLabel = displayDay === 1 ? `<span class="text-[9px] font-bold text-indigo-200">${displayMonth.toUpperCase()}</span>` : `<span class="text-[9px] uppercase tracking-wide opacity-80">${dayName}</span>`;
 
         btn.innerHTML = `
@@ -99,20 +107,15 @@ function renderDateSelector() {
     }
 }
 
-// --- CAMBIO 3: LÓGICA MULTI-SELECT (TOGGLE) ---
+// --- LÓGICA MULTI-SELECT (TOGGLE) ---
 function handleDateClick(dateKey) {
     if (selectedDates.has(dateKey)) {
-        // Si ya está, lo quitamos (OFF)
-        // IMPORTANTE: Evitar dejar vacío todo para que no explote el gráfico
         if (selectedDates.size > 1) {
             selectedDates.delete(dateKey);
         } else {
-             // Opcional: No permitir deseleccionar el último, o dejarlo vacío
-             // Aquí permitimos borrarlo pero la tabla mostrará "No data"
              selectedDates.delete(dateKey);
         }
     } else {
-        // Si no está, lo agregamos (ON)
         selectedDates.add(dateKey);
     }
     
@@ -120,15 +123,12 @@ function handleDateClick(dateKey) {
     updateDashboard();
 }
 
-// --- ACTUALIZACIÓN DE DATOS (Basado en el Set) ---
+// --- ACTUALIZACIÓN DE DATOS ---
 function updateDashboard() {
-    // Convertir Set a Array y Ordenar (Crucial para el gráfico de línea)
-    // localeCompare asegura que '2025-11-20' venga antes que '2025-11-22'
     const sortedSelectedKeys = Array.from(selectedDates).sort();
 
     const filteredData = globalData.filter(d => {
         const itemDate = d.day.split('T')[0];
-        // Filtramos si la fecha está incluida en el Set de seleccionados
         return selectedDates.has(itemDate);
     });
 
@@ -149,16 +149,13 @@ function updateDashboard() {
 
     const sortedBrands = Array.from(brandsSet).sort((a, b) => brandTotals[b] - brandTotals[a]);
     
-    // Las fechas para el eje X deben ser las que están en el Set, ordenadas
-    // Pero ojo: pivot usa formato visual ("Nov 20"), el Set usa ISO ("2025-11-20").
-    // Debemos mapear las keys ordenadas a su formato visual.
     const chartLabels = sortedSelectedKeys.map(isoDate => formatDisplayDate(isoDate));
 
     renderTable(sortedBrands, chartLabels, pivot);
     renderChart(sortedBrands, chartLabels, pivot);
 }
 
-// --- RENDERIZADORES ---
+// --- RENDER TABLE ---
 function renderTable(sortedBrands, sortedDates, pivot) {
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
@@ -177,7 +174,6 @@ function renderTable(sortedBrands, sortedDates, pivot) {
         return;
     }
 
-    // Invertir para mostrar lo más reciente arriba en la tabla
     [...sortedDates].reverse().forEach(date => {
         const tr = document.createElement('tr')
         tr.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
@@ -195,23 +191,18 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     })
 }
 
+// --- RENDER CHART ---
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
     if (chartInstance) chartInstance.destroy();
 
     const ctx = chartCanvas.getContext('2d')
-    
     const isSingleDay = sortedDates.length === 1;
-
-    // Etiquetas para el gráfico
     const chartLabels = isSingleDay ? ['', sortedDates[0], ' '] : sortedDates;
 
     const datasets = sortedBrands.map((brand, index) => {
         const style = getBrandColor(brand, index)
-        
         const originalData = sortedDates.map(date => (pivot[date] && pivot[date][brand]) || 0);
-        
-        // Repetir dato si es 1 día para efecto horizonte
         const chartData = isSingleDay ? [originalData[0], originalData[0], originalData[0]] : originalData;
 
         return {
@@ -303,27 +294,16 @@ async function loadData() {
 
     // SYNC LOG
     try {
-        const { data: lastMsgData } = await supabase
-            .from('messages')
-            .select('brand, extra1, date, id')
-            .order('date', { ascending: false })
-            .limit(1);
-
+        const { data: lastMsgData } = await supabase.from('messages').select('brand, extra1, date, id').order('date', { ascending: false }).limit(1);
         if (lastMsgData && lastMsgData.length > 0) {
             const lastMsg = lastMsgData[0];
             const msgDate = new Date(lastMsg.date);
-            const formattedDate = msgDate.toLocaleString('es-ES', { 
-                day: '2-digit', month: '2-digit', year: 'numeric', 
-                hour: '2-digit', minute: '2-digit', second: '2-digit' 
-            });
-            console.log(
-                `%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
-                'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
-            );
+            const formattedDate = msgDate.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            console.log(`%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;');
         }
-    } catch (syncErr) { console.warn(syncErr); }
+    } catch (e) {}
 
-    // DETECTAR HASTA DONDE TENEMOS DATOS (Para habilitar botones)
+    // DETECTAR ÚLTIMA FECHA
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
         maxAvailableDate = lastItem.day.split('T')[0];
@@ -331,17 +311,17 @@ async function loadData() {
         maxAvailableDate = '2025-11-27'; 
     }
 
-    // CAMBIO 4: AUTO-SELECCIONAR TODO LO DISPONIBLE AL INICIO
-    // Llenamos el Set con todas las fechas válidas desde el 20 hasta maxAvailableDate
+    // AUTO-SELECT ALL
     let tempDate = new Date('2025-11-20');
     const lastDate = new Date(maxAvailableDate);
-    
     selectedDates.clear();
     while (tempDate <= lastDate) {
         selectedDates.add(formatDateKey(tempDate));
         tempDate.setDate(tempDate.getDate() + 1);
     }
 
+    // ACTIVAR FLECHAS Y RENDERIZAR
+    setupScrollArrows(); 
     renderDateSelector();
     updateDashboard();
 
