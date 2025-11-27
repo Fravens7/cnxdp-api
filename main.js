@@ -16,6 +16,7 @@ const defaultColors = ['#64748b', '#94a3b8', '#cbd5e1']
 
 // VARIABLES GLOBALES
 let globalData = [];
+let maxAvailableDate = ''; // Para detectar hasta qué día pintar botones activos
 let selectedStart = null;
 let selectedEnd = null;
 let chartInstance = null; 
@@ -38,14 +39,14 @@ function formatDisplayDate(dateString) {
   return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// --- LÓGICA DEL SELECTOR (Timeline Compacto) ---
+// --- RENDERIZADO DEL SELECTOR (MEJORADO: FUTURO + ESTADO) ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
     container.innerHTML = '';
 
+    // Rango visual del calendario: 17 Nov al 30 Nov
     const startDate = new Date('2025-11-17'); 
-    const endDate = new Date('2025-11-27');
-    const validDataStart = new Date('2025-11-20');
+    const endDate = new Date('2025-11-30'); 
 
     let currentDate = new Date(startDate);
 
@@ -54,7 +55,10 @@ function renderDateSelector() {
         const displayDay = currentDate.getDate();
         const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
         
-        const isDisabled = currentDate < validDataStart;
+        // Lógica de habilitado:
+        // Debe ser mayor al inicio de datos (20) Y menor o igual al último dato recibido de Supabase
+        const validDataStart = '2025-11-20';
+        const hasData = dateKey >= validDataStart && dateKey <= maxAvailableDate;
         
         let isSelected = false;
         if (selectedStart && selectedEnd) {
@@ -67,12 +71,15 @@ function renderDateSelector() {
         
         let classes = "flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all min-w-[55px] ";
         
-        if (isDisabled) {
+        if (!hasData) {
+            // DÍAS SIN DATOS: Gris suave, deshabilitado
             classes += "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50";
             btn.disabled = true;
         } else if (isSelected) {
-            classes += "bg-indigo-600 border-indigo-600 text-white shadow-sm font-semibold";
+            // SELECCIONADO: Azul fuerte
+            classes += "bg-indigo-600 border-indigo-600 text-white shadow-sm font-semibold transform scale-105";
         } else {
+            // DISPONIBLE: Blanco
             classes += "bg-white border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-indigo-50";
         }
         
@@ -82,7 +89,7 @@ function renderDateSelector() {
             <span class="text-base leading-none">${displayDay}</span>
         `;
 
-        if (!isDisabled) {
+        if (hasData) {
             btn.onclick = () => handleDateClick(dateKey);
         }
 
@@ -91,7 +98,7 @@ function renderDateSelector() {
     }
 }
 
-// --- LÓGICA DE SELECCIÓN INTELIGENTE ---
+// --- LÓGICA DE SELECCIÓN INTELIGENTE (RECORTAR RANGO) ---
 function handleDateClick(dateKey) {
     if (!selectedStart) {
         selectedStart = dateKey;
@@ -100,22 +107,33 @@ function handleDateClick(dateKey) {
         if (dateKey < selectedStart) {
             selectedEnd = selectedStart;
             selectedStart = dateKey;
+        } else if (dateKey === selectedStart) {
+             selectedEnd = null;
         } else {
             selectedEnd = dateKey;
         }
     } else {
-        if (dateKey > selectedEnd) {
-            selectedEnd = dateKey;
-        } else if (dateKey < selectedStart) {
-            selectedStart = dateKey;
-        } else {
-            selectedStart = dateKey;
-            selectedEnd = null;
+        // Lógica de "Trim" (Recorte)
+        if (dateKey === selectedStart) {
+             selectedStart = dateKey;
+             selectedEnd = null;
+        } 
+        else if (dateKey > selectedStart && dateKey < selectedEnd) {
+             selectedEnd = dateKey; // Recortar derecha
+        } 
+        else if (dateKey > selectedEnd) {
+             selectedEnd = dateKey; // Extender derecha
+        } 
+        else if (dateKey < selectedStart) {
+             selectedStart = dateKey; // Extender izquierda
+        }
+        else if (dateKey === selectedEnd) {
+             selectedStart = dateKey;
+             selectedEnd = null;
         }
     }
     
     const effectiveEnd = selectedEnd || selectedStart;
-    
     renderDateSelector();
     updateDashboard(selectedStart, effectiveEnd);
 }
@@ -149,7 +167,7 @@ function updateDashboard(startKey, endKey) {
     renderChart(sortedBrands, sortedDates, pivot);
 }
 
-// --- RENDERIZADORES ---
+// --- RENDER TABLA ---
 function renderTable(sortedBrands, sortedDates, pivot) {
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
@@ -185,23 +203,36 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     })
 }
 
+// --- RENDER GRÁFICO (CON EFECTO HORIZONTE PARA 1 DÍA) ---
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
     if (chartInstance) chartInstance.destroy();
 
     const ctx = chartCanvas.getContext('2d')
     
+    // DETECCIÓN DE 1 DÍA
+    const isSingleDay = sortedDates.length === 1;
+
+    // Etiquetas falsas para estirar la línea si es 1 solo día
+    const chartLabels = isSingleDay ? ['', sortedDates[0], ' '] : sortedDates;
+
     const datasets = sortedBrands.map((brand, index) => {
         const style = getBrandColor(brand, index)
+        
+        const originalData = sortedDates.map(date => pivot[date][brand] || 0);
+        
+        // Repetir dato para crear línea plana
+        const chartData = isSingleDay ? [originalData[0], originalData[0], originalData[0]] : originalData;
+
         return {
             label: brand,
-            data: sortedDates.map(date => pivot[date][brand] || 0),
+            data: chartData,
             borderColor: style.border,
             backgroundColor: style.bg,
             borderWidth: 2,
-            tension: 0.35,
+            tension: isSingleDay ? 0 : 0.35,
             fill: true,
-            pointRadius: 4, 
+            pointRadius: isSingleDay ? [0, 5, 0] : 0, 
             pointHoverRadius: 7,
             pointBackgroundColor: '#ffffff',
             pointBorderWidth: 2
@@ -210,7 +241,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
 
     chartInstance = new Chart(ctx, {
         type: 'line', 
-        data: { labels: sortedDates, datasets: datasets },
+        data: { labels: chartLabels, datasets: datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -232,7 +263,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodyFont: { family: "'Inter', sans-serif", size: 13 },
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
-                          label: function(context) {
+                         label: function(context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
@@ -247,7 +278,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                 x: { 
                     grid: { display: false }, 
                     ticks: { maxRotation: 0, font: { family: "'Inter', sans-serif" } },
-                    offset: true 
+                    offset: false 
                 },
                 y: { 
                     stacked: true, 
@@ -261,7 +292,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
     })
 }
 
-// --- CARGA INICIAL (MODIFICADA CON CONSOLE LOG) ---
+// --- CARGA INICIAL (CON TU LOGICA DE SYNC AGREGADA) ---
 async function loadData() {
   const loader = document.getElementById('loader')
   const content = document.getElementById('dashboard-content')
@@ -281,24 +312,22 @@ async function loadData() {
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-    // 2. NUEVO: OBTENER EL ÚLTIMO MENSAJE REAL PARA DIAGNÓSTICO
+    // 2. LOGICA DE SYNC (Tu código insertado aquí)
     try {
         const { data: lastMsgData } = await supabase
             .from('messages')
             .select('brand, extra1, date, id')
-            .order('date', { ascending: false }) // El más reciente primero
-            .limit(1); // Solo uno
+            .order('date', { ascending: false })
+            .limit(1);
 
         if (lastMsgData && lastMsgData.length > 0) {
             const lastMsg = lastMsgData[0];
             const msgDate = new Date(lastMsg.date);
-            // Formato legible de fecha
             const formattedDate = msgDate.toLocaleString('es-ES', { 
                 day: '2-digit', month: '2-digit', year: 'numeric', 
                 hour: '2-digit', minute: '2-digit', second: '2-digit' 
             });
 
-            // Imprimir en consola con fondo VERDE
             console.log(
                 `%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
                 'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
@@ -308,9 +337,17 @@ async function loadData() {
         console.warn("No se pudo obtener el log de sincronización:", syncErr);
     }
 
-    // --- CONTINUAR CARGA VISUAL ---
+    // 3. DETECTAR ÚLTIMA FECHA DISPONIBLE (Para el selector)
+    if (globalData.length > 0) {
+        const lastItem = globalData[globalData.length - 1];
+        maxAvailableDate = lastItem.day.split('T')[0];
+    } else {
+        maxAvailableDate = '2025-11-27'; // Fallback
+    }
+
+    // Configuración inicial: Todo el rango disponible
     selectedStart = '2025-11-20';
-    selectedEnd = '2025-11-27';
+    selectedEnd = maxAvailableDate;
 
     renderDateSelector();
     updateDashboard(selectedStart, selectedEnd);
