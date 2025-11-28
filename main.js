@@ -2,16 +2,15 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
-// --- CONFIGURACIÓN VISUAL (Paleta Sólida Profesional - Tono Medio) ---
-// Colores sólidos pero menos "neón", más serios y fáciles de ver.
+// --- CONFIGURACIÓN VISUAL ---
 const brandPalette = {
-  'M1': { border: '#1d4ed8', bg: '#3b82f6' }, // Azul profesional
-  'K1': { border: '#047857', bg: '#10b981' }, // Verde esmeralda serio
-  'B1': { border: '#c2410c', bg: '#f97316' }, // Naranja calido
-  'B2': { border: '#7e22ce', bg: '#a855f7' }, // Púrpura medio
-  'B3': { border: '#0369a1', bg: '#0ea5e9' }, // Azul cielo profundo
-  'B4': { border: '#4d7c0f', bg: '#84cc16' }, // Verde oliva vibrante
-  'M2': { border: '#b91c1c', bg: '#ef4444' }, // Rojo intenso
+  'M1': { border: '#1d4ed8', bg: '#3b82f6' }, 
+  'K1': { border: '#047857', bg: '#10b981' }, 
+  'B1': { border: '#c2410c', bg: '#f97316' }, 
+  'B2': { border: '#7e22ce', bg: '#a855f7' }, 
+  'B3': { border: '#0369a1', bg: '#0ea5e9' }, 
+  'B4': { border: '#4d7c0f', bg: '#84cc16' }, 
+  'M2': { border: '#b91c1c', bg: '#ef4444' }, 
 }
 const defaultColors = ['#475569', '#64748b', '#94a3b8']
 
@@ -21,7 +20,7 @@ let maxAvailableDate = '';
 let selectedDates = new Set(); 
 let chartInstance = null; 
 
-// VARIABLES PARA EL DRAG (BARRIDO)
+// VARIABLES PARA EL DRAG
 let isDragging = false;
 let dragStartIndex = -1;
 let dragMode = 'select';
@@ -31,7 +30,6 @@ let visibleDateKeys = [];
 function getBrandColor(brand, index) {
   if (brandPalette[brand]) return brandPalette[brand]
   const color = defaultColors[index % defaultColors.length]
-  // Si no hay marca, usamos un gris sólido también
   return { border: color, bg: color }
 }
 
@@ -61,6 +59,9 @@ function setupScrollArrows() {
 // --- RENDERIZADO DEL SELECTOR ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
+    // Guardamos la posición del scroll antes de redibujar para que no salte
+    const currentScroll = container.scrollLeft;
+    
     container.innerHTML = '';
     visibleDateKeys = []; 
 
@@ -134,6 +135,9 @@ function renderDateSelector() {
         currentDate.setDate(currentDate.getDate() + 1);
         index++;
     }
+    
+    // Restaurar posición del scroll
+    container.scrollLeft = currentScroll;
 }
 
 // --- LÓGICA DEL BARRIDO ---
@@ -206,17 +210,11 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
     
-    // 1. Encabezados
-    // Fecha a la izquierda
     theadRow.innerHTML = '<th class="px-4 py-3 text-left font-semibold text-slate-600 w-24">DATE</th>'
-    
     sortedBrands.forEach(b => {
         const colorStyle = brandPalette[b] ? `style="color: ${brandPalette[b].border}"` : '';
-        // Marcas a la derecha (para alinear con números)
         theadRow.innerHTML += `<th class="px-4 py-3 text-right font-semibold" ${colorStyle}>${b}</th>`
     })
-    
-    // Columna TOTAL: CENTRADA (text-center) para destacar
     theadRow.innerHTML += '<th class="px-4 py-3 text-center font-bold text-slate-700 border-l border-slate-200 bg-slate-50">TOTAL</th>'
 
     tbody.innerHTML = ''
@@ -230,26 +228,21 @@ function renderTable(sortedBrands, sortedDates, pivot) {
         const tr = document.createElement('tr')
         tr.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
         
-        // Celda Fecha
         let rowHtml = `<td class="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap">${date}</td>`
         let total = 0
-        
-        // Celdas Marcas (Alineadas a la derecha)
         sortedBrands.forEach(brand => {
             const count = (pivot[date] && pivot[date][brand]) || 0
             total += count
             const textClass = count === 0 ? 'text-slate-300' : 'text-slate-600 font-medium'
             rowHtml += `<td class="px-4 py-4 text-right ${textClass}">${count > 0 ? count.toLocaleString() : '-'}</td>`
         })
-        
-        // Celda Total (CENTRADA para coincidir con el título)
         rowHtml += `<td class="px-4 py-4 text-center font-black text-slate-800 border-l border-slate-200 bg-slate-50">${total.toLocaleString()}</td>`
-        
         tr.innerHTML = rowHtml
         tbody.appendChild(tr)
     })
 }
-// --- RENDER CHART (Colores Sólidos y Espaciado Tooltip Corregido) ---
+
+// --- RENDER CHART ---
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
     if (chartInstance) chartInstance.destroy();
@@ -267,7 +260,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             label: brand,
             data: chartData,
             borderColor: style.border,
-            backgroundColor: style.bg, // Color sólido
+            backgroundColor: style.bg, 
             borderWidth: 2,
             tension: isSingleDay ? 0 : 0.35,
             fill: true,
@@ -289,11 +282,10 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             responsive: true,
             maintainAspectRatio: false,
             layout: { padding: { left: 10, right: 10, top: 20, bottom: 0 } },
+            animation: { duration: 800 }, 
             plugins: {
                 legend: { 
-                    position: 'top', 
-                    align: 'end', 
-                    labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, usePointStyle: true } 
+                    position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, usePointStyle: true } 
                 },
                 tooltip: {
                     mode: 'index',
@@ -307,13 +299,11 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodySpacing: 6,
                     usePointStyle: true,
                     titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
-                    // Fuente monoespaciada para alinear números
                     bodyFont: { family: "'Roboto Mono', 'Menlo', monospace", size: 13, weight: '500' }, 
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
                             let label = context.dataset.label || '';
-                            // CORRECCIÓN DE ESPACIADO: Solo un espacio después de los dos puntos
                             if (label) label += ': '; 
                             if (context.parsed.y !== null) {
                                 label += context.parsed.y.toLocaleString();
@@ -350,6 +340,62 @@ function renderChart(sortedBrands, sortedDates, pivot) {
     })
 }
 
+// ==========================================
+// ⚡️ REALTIME ENGINE ⚡️
+// ==========================================
+function setupRealtimeListener() {
+    console.log("⚡️ Escuchando cambios en tiempo real...");
+    supabase
+        .channel('public:messages')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+            console.log('🔄 Cambio detectado en DB! Actualizando dashboard...', payload);
+            refreshDataInBackground();
+        })
+        .subscribe();
+}
+
+async function refreshDataInBackground() {
+    const lastUpdateLabel = document.getElementById('last-update');
+    
+    // Solo actualizamos el indicador a "Actualizando..." sin borrar la pantalla
+    lastUpdateLabel.textContent = "Updating...";
+    lastUpdateLabel.classList.add("animate-pulse", "text-indigo-600");
+
+    try {
+        const cutOffDate = new Date('2025-11-20');
+        let { data, error } = await supabase
+            .from('daily_brand_counts') 
+            .select('*')
+            .gte('day', cutOffDate.toISOString())
+            .order('day', { ascending: true });
+
+        if (error) throw error;
+
+        // Actualizamos datos globales
+        globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
+
+        // Actualizamos maxAvailableDate para el selector
+        if (globalData.length > 0) {
+            const lastItem = globalData[globalData.length - 1];
+            maxAvailableDate = lastItem.day.split('T')[0];
+        }
+
+        // ¡MAGIA! Redibujamos todo sin perder la selección actual del usuario
+        // renderDateSelector redibujará los botones con los nuevos datos disponibles
+        renderDateSelector(); 
+        updateDashboard();
+
+        // Actualizamos fecha
+        const now = new Date();
+        lastUpdateLabel.textContent = `Live: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
+        lastUpdateLabel.classList.remove("animate-pulse", "text-indigo-600");
+        lastUpdateLabel.classList.add("text-green-600", "font-bold");
+
+    } catch (err) {
+        console.error("Error en refresh background:", err);
+    }
+}
+
 // --- CARGA INICIAL ---
 async function loadData() {
   const loader = document.getElementById('loader')
@@ -369,16 +415,6 @@ async function loadData() {
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-    try {
-        const { data: lastMsgData } = await supabase.from('messages').select('brand, extra1, date, id').order('date', { ascending: false }).limit(1);
-        if (lastMsgData && lastMsgData.length > 0) {
-            const lastMsg = lastMsgData[0];
-            const msgDate = new Date(lastMsg.date);
-            const formattedDate = msgDate.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            console.log(`%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;');
-        }
-    } catch (e) {}
-
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
         maxAvailableDate = lastItem.day.split('T')[0];
@@ -386,6 +422,7 @@ async function loadData() {
         maxAvailableDate = '2025-11-27'; 
     }
 
+    // Auto-select inicial
     let tempDate = new Date('2025-11-20');
     const lastDate = new Date(maxAvailableDate);
     selectedDates.clear();
@@ -397,6 +434,9 @@ async function loadData() {
     setupScrollArrows(); 
     renderDateSelector();
     updateDashboard();
+    
+    // INICIAR REALTIME
+    setupRealtimeListener();
 
     const now = new Date()
     lastUpdateLabel.textContent = `Updated: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`
