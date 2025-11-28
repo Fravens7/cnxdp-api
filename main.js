@@ -390,7 +390,6 @@ async function refreshDataInBackground() {
     }
 }
 
-// --- CARGA INICIAL ---
 async function loadData() {
   const loader = document.getElementById('loader')
   const content = document.getElementById('dashboard-content')
@@ -410,7 +409,7 @@ async function loadData() {
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
     // ============================================================
-    // 🛠️ BLOQUE DE DIAGNÓSTICO RESTAURADO (SYNC LOG) 🛠️
+    // 🛠️ BLOQUE DE DIAGNÓSTICO (SYNC LOG) 🛠️
     // ============================================================
     try {
         const { data: lastMsgData } = await supabase
@@ -422,9 +421,12 @@ async function loadData() {
         if (lastMsgData && lastMsgData.length > 0) {
             const lastMsg = lastMsgData[0];
             const msgDate = new Date(lastMsg.date);
+            
+            // CORRECCIÓN CLAVE: Agregamos timeZone: 'Asia/Colombo'
             const formattedDate = msgDate.toLocaleString('es-ES', { 
                 day: '2-digit', month: '2-digit', year: 'numeric', 
-                hour: '2-digit', minute: '2-digit', second: '2-digit' 
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                timeZone: 'Asia/Colombo' // <-- FUERZA HORA DE COLOMBO/IST
             });
 
             console.log(
@@ -432,8 +434,8 @@ async function loadData() {
                 'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
             );
         }
-    } catch (syncErr) {
-        console.warn("No se pudo obtener el log de sincronización:", syncErr);
+    } catch (e) {
+        console.warn("No se pudo obtener el log de sincronización.");
     }
     // ============================================================
 
