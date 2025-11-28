@@ -300,11 +300,14 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodyColor: '#334155',
                     borderColor: '#e2e8f0',
                     borderWidth: 1,
-                    padding: 12, 
-                    bodySpacing: 4,
+                    // AJUSTES DE ESPACIADO Y ALINEACIÓN
+                    padding: { top: 10, bottom: 10, left: 12, right: 12 }, 
+                    boxPadding: 6, // Espacio entre el cuadrito de color y el texto
+                    bodySpacing: 6, // Espacio entre líneas
                     usePointStyle: true,
-                    titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
-                    bodyFont: { family: "'Inter', sans-serif", size: 13 },
+                    titleFont: { family: "'Inter', sans-serif", size: 14, weight: '600' },
+                    bodyFont: { family: "'Inter', sans-serif", size: 13, weight: '500' },
+                    // ... resto de callbacks (itemSort, label, labelColor) igual que antes ...
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
@@ -315,12 +318,11 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                             }
                             return label;
                         },
-                        // Forzamos que el color del cuadrito del tooltip coincida con el área y la leyenda
                         labelColor: function(context) {
                             const style = getBrandColor(context.dataset.label, context.datasetIndex);
                             return {
                                 borderColor: style.border,
-                                backgroundColor: style.bg, // Color de relleno (igual al área)
+                                backgroundColor: style.bg, 
                                 borderWidth: 1,
                                 borderRadius: 2
                             };
