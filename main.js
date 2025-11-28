@@ -4,17 +4,16 @@ const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG
 
 
 const brandPalette = {
-  // Usamos tonos más suaves y menos saturados
-  'M1': { border: '#4f86f7', bg: '#6096fd' }, // Azul suave
-  'K1': { border: '#43a047', bg: '#5bbd7e' }, // Verde hierba apagado
-  'B1': { border: '#fb8c00', bg: '#fa8c42' }, // Naranja quemado suave
-  'B2': { border: '#8e24aa', bg: '#b779f5' }, // Violeta medio
-  'B3': { border: '#039be5', bg: '#3fbdf1' }, // Cian suave
-  'B4': { border: '#7cb342', bg: '#9ed656' }, // Verde lima apagado
-  'M2': { border: '#e53935', bg: '#f56565' }, // Rojo tomate suave
+  'M1': { border: '#5b8ef7', bg: '#87aefc' }, // Azul pastel
+  'K1': { border: '#4db6ac', bg: '#80cbc4' }, // Verde azulado pastel
+  'B1': { border: '#ffb74d', bg: '#ffcc80' }, // Naranja pastel
+  'B2': { border: '#ba68c8', bg: '#ce93d8' }, // Lila pastel
+  'B3': { border: '#4fc3f7', bg: '#81d4fa' }, // Azul cielo pastel
+  'B4': { border: '#aed581', bg: '#c5e1a5' }, // Verde lima pastel
+  'M2': { border: '#e57373', bg: '#ef9a9a' }, // Rojo suave pastel
 }
-// Colores por defecto también más suaves
-const defaultColors = ['#94a3b8', '#cbd5e1', '#e2e8f0']
+// Colores por defecto más suaves
+const defaultColors = ['#b0bec5', '#cfd8dc', '#eceff1']
 
 // VARIABLES GLOBALES
 let globalData = [];
