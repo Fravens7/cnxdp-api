@@ -2,7 +2,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
-// --- CONFIGURACIÓN VISUAL ---
+// --- CONFIGURACIÓN VISUAL (Paleta Sólida Profesional - Tono Medio) ---
 const brandPalette = {
   'M1': { border: '#1d4ed8', bg: '#3b82f6' }, 
   'K1': { border: '#047857', bg: '#10b981' }, 
@@ -20,7 +20,7 @@ let maxAvailableDate = '';
 let selectedDates = new Set(); 
 let chartInstance = null; 
 
-// VARIABLES PARA EL DRAG
+// VARIABLES PARA EL DRAG (BARRIDO)
 let isDragging = false;
 let dragStartIndex = -1;
 let dragMode = 'select';
@@ -59,7 +59,7 @@ function setupScrollArrows() {
 // --- RENDERIZADO DEL SELECTOR ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
-    // Guardamos la posición del scroll antes de redibujar para que no salte
+    // Guardar posición de scroll para evitar saltos al redibujar
     const currentScroll = container.scrollLeft;
     
     container.innerHTML = '';
@@ -136,7 +136,7 @@ function renderDateSelector() {
         index++;
     }
     
-    // Restaurar posición del scroll
+    // Restaurar scroll
     container.scrollLeft = currentScroll;
 }
 
@@ -357,7 +357,6 @@ function setupRealtimeListener() {
 async function refreshDataInBackground() {
     const lastUpdateLabel = document.getElementById('last-update');
     
-    // Solo actualizamos el indicador a "Actualizando..." sin borrar la pantalla
     lastUpdateLabel.textContent = "Updating...";
     lastUpdateLabel.classList.add("animate-pulse", "text-indigo-600");
 
@@ -371,21 +370,16 @@ async function refreshDataInBackground() {
 
         if (error) throw error;
 
-        // Actualizamos datos globales
         globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
-        // Actualizamos maxAvailableDate para el selector
         if (globalData.length > 0) {
             const lastItem = globalData[globalData.length - 1];
             maxAvailableDate = lastItem.day.split('T')[0];
         }
 
-        // ¡MAGIA! Redibujamos todo sin perder la selección actual del usuario
-        // renderDateSelector redibujará los botones con los nuevos datos disponibles
         renderDateSelector(); 
         updateDashboard();
 
-        // Actualizamos fecha
         const now = new Date();
         lastUpdateLabel.textContent = `Live: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
         lastUpdateLabel.classList.remove("animate-pulse", "text-indigo-600");
@@ -415,6 +409,34 @@ async function loadData() {
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
+    // ============================================================
+    // 🛠️ BLOQUE DE DIAGNÓSTICO RESTAURADO (SYNC LOG) 🛠️
+    // ============================================================
+    try {
+        const { data: lastMsgData } = await supabase
+            .from('messages')
+            .select('brand, extra1, date, id')
+            .order('date', { ascending: false })
+            .limit(1);
+
+        if (lastMsgData && lastMsgData.length > 0) {
+            const lastMsg = lastMsgData[0];
+            const msgDate = new Date(lastMsg.date);
+            const formattedDate = msgDate.toLocaleString('es-ES', { 
+                day: '2-digit', month: '2-digit', year: 'numeric', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit' 
+            });
+
+            console.log(
+                `%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
+                'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
+            );
+        }
+    } catch (syncErr) {
+        console.warn("No se pudo obtener el log de sincronización:", syncErr);
+    }
+    // ============================================================
+
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
         maxAvailableDate = lastItem.day.split('T')[0];
@@ -422,7 +444,6 @@ async function loadData() {
         maxAvailableDate = '2025-11-27'; 
     }
 
-    // Auto-select inicial
     let tempDate = new Date('2025-11-20');
     const lastDate = new Date(maxAvailableDate);
     selectedDates.clear();
@@ -435,7 +456,6 @@ async function loadData() {
     renderDateSelector();
     updateDashboard();
     
-    // INICIAR REALTIME
     setupRealtimeListener();
 
     const now = new Date()
