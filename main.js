@@ -4,16 +4,15 @@ const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG
 
 
 const brandPalette = {
-  'M1': { border: '#5b8ef7', bg: '#87aefc' }, // Azul pastel
-  'K1': { border: '#4db6ac', bg: '#80cbc4' }, // Verde azulado pastel
-  'B1': { border: '#ffb74d', bg: '#ffcc80' }, // Naranja pastel
-  'B2': { border: '#ba68c8', bg: '#ce93d8' }, // Lila pastel
-  'B3': { border: '#4fc3f7', bg: '#81d4fa' }, // Azul cielo pastel
-  'B4': { border: '#aed581', bg: '#c5e1a5' }, // Verde lima pastel
-  'M2': { border: '#e57373', bg: '#ef9a9a' }, // Rojo suave pastel
+  'M1': { border: '#2563eb', bg: '#3b82f6' }, // Azul Royal Vibrante
+  'K1': { border: '#059669', bg: '#10b981' }, // Esmeralda Intenso
+  'B1': { border: '#ea580c', bg: '#f97316' }, // Naranja Solar
+  'B2': { border: '#9333ea', bg: '#a855f7' }, // Púrpura Eléctrico
+  'B3': { border: '#0284c7', bg: '#0ea5e9' }, // Cian Profundo
+  'B4': { border: '#65a30d', bg: '#84cc16' }, // Lima Fresco
+  'M2': { border: '#dc2626', bg: '#ef4444' }, // Rojo Cereza
 }
-// Colores por defecto más suaves
-const defaultColors = ['#b0bec5', '#cfd8dc', '#eceff1']
+const defaultColors = ['#475569', '#64748b', '#94a3b8']
 
 // VARIABLES GLOBALES
 let globalData = [];
