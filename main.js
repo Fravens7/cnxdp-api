@@ -3,18 +3,18 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
 
-// --- CONFIGURACIÓN VISUAL (Colores Sólidos para evitar mezclas) ---
 const brandPalette = {
-  'M1': { border: '#2563eb', bg: '#3b82f6' }, // Azul intenso
-  'K1': { border: '#059669', bg: '#10b981' }, // Verde esmeralda
-  'B1': { border: '#ea580c', bg: '#f97316' }, // Naranja vibrante
-  'B2': { border: '#9333ea', bg: '#a855f7' }, // Morado
-  'B3': { border: '#0284c7', bg: '#0ea5e9' }, // Azul cielo
-  'B4': { border: '#65a30d', bg: '#84cc16' }, // Verde lima
-  'M2': { border: '#dc2626', bg: '#ef4444' }, // Rojo puro
+  // Usamos tonos más suaves y menos saturados
+  'M1': { border: '#4f86f7', bg: '#6096fd' }, // Azul suave
+  'K1': { border: '#43a047', bg: '#5bbd7e' }, // Verde hierba apagado
+  'B1': { border: '#fb8c00', bg: '#fa8c42' }, // Naranja quemado suave
+  'B2': { border: '#8e24aa', bg: '#b779f5' }, // Violeta medio
+  'B3': { border: '#039be5', bg: '#3fbdf1' }, // Cian suave
+  'B4': { border: '#7cb342', bg: '#9ed656' }, // Verde lima apagado
+  'M2': { border: '#e53935', bg: '#f56565' }, // Rojo tomate suave
 }
-// Colores por defecto también sólidos por si acaso
-const defaultColors = ['#64748b', '#94a3b8', '#cbd5e1']
+// Colores por defecto también más suaves
+const defaultColors = ['#94a3b8', '#cbd5e1', '#e2e8f0']
 
 // VARIABLES GLOBALES
 let globalData = [];
