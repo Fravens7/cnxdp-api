@@ -2,16 +2,22 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
-// --- CONFIGURACIÓN VISUAL (Paleta Sólida Profesional - Tono Medio) ---
-// Colores sólidos pero menos "neón", más serios y fáciles de ver.
+// ==========================================
+// 🌊 CONFIGURACIÓN DE ANIMACIÓN DE OLAS 🌊
+// ==========================================
+const ENABLE_WAVE_ANIMATION = true; // <--- CAMBIA A FALSE PARA DESACTIVAR
+let animationId = null; // Variable para controlar el bucle de animación
+let originalDatasetsData = null; // Copia de seguridad de los datos originales
+
+// --- CONFIGURACIÓN VISUAL (Paleta Sólida Profesional) ---
 const brandPalette = {
-  'M1': { border: '#1d4ed8', bg: '#3b82f6' }, // Azul profesional
-  'K1': { border: '#047857', bg: '#10b981' }, // Verde esmeralda serio
-  'B1': { border: '#c2410c', bg: '#f97316' }, // Naranja calido
-  'B2': { border: '#7e22ce', bg: '#a855f7' }, // Púrpura medio
-  'B3': { border: '#0369a1', bg: '#0ea5e9' }, // Azul cielo profundo
-  'B4': { border: '#4d7c0f', bg: '#84cc16' }, // Verde oliva vibrante
-  'M2': { border: '#b91c1c', bg: '#ef4444' }, // Rojo intenso
+  'M1': { border: '#1d4ed8', bg: '#3b82f6' }, 
+  'K1': { border: '#047857', bg: '#10b981' }, 
+  'B1': { border: '#c2410c', bg: '#f97316' }, 
+  'B2': { border: '#7e22ce', bg: '#a855f7' }, 
+  'B3': { border: '#0369a1', bg: '#0ea5e9' }, 
+  'B4': { border: '#4d7c0f', bg: '#84cc16' }, 
+  'M2': { border: '#b91c1c', bg: '#ef4444' }, 
 }
 const defaultColors = ['#475569', '#64748b', '#94a3b8']
 
@@ -21,7 +27,7 @@ let maxAvailableDate = '';
 let selectedDates = new Set(); 
 let chartInstance = null; 
 
-// VARIABLES PARA EL DRAG (BARRIDO)
+// VARIABLES PARA EL DRAG
 let isDragging = false;
 let dragStartIndex = -1;
 let dragMode = 'select';
@@ -31,7 +37,6 @@ let visibleDateKeys = [];
 function getBrandColor(brand, index) {
   if (brandPalette[brand]) return brandPalette[brand]
   const color = defaultColors[index % defaultColors.length]
-  // Si no hay marca, usamos un gris sólido también
   return { border: color, bg: color }
 }
 
@@ -237,10 +242,13 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     })
 }
 
-// --- RENDER CHART (Colores Sólidos y Espaciado Tooltip Corregido) ---
+// --- RENDER CHART ---
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
-    if (chartInstance) chartInstance.destroy();
+    
+    // 1. LIMPIEZA TOTAL PREVIA
+    if (animationId) cancelAnimationFrame(animationId); // Detener olas antiguas
+    if (chartInstance) chartInstance.destroy(); // Destruir gráfico antiguo
 
     const ctx = chartCanvas.getContext('2d')
     const isSingleDay = sortedDates.length === 1;
@@ -255,7 +263,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             label: brand,
             data: chartData,
             borderColor: style.border,
-            backgroundColor: style.bg, // Color sólido
+            backgroundColor: style.bg, 
             borderWidth: 2,
             tension: isSingleDay ? 0 : 0.35,
             fill: true,
@@ -277,11 +285,11 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             responsive: true,
             maintainAspectRatio: false,
             layout: { padding: { left: 10, right: 10, top: 20, bottom: 0 } },
+            // Desactivar animación de entrada si usamos las olas, para evitar conflictos
+            animation: ENABLE_WAVE_ANIMATION ? false : { duration: 1000 }, 
             plugins: {
                 legend: { 
-                    position: 'top', 
-                    align: 'end', 
-                    labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, usePointStyle: true } 
+                    position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, usePointStyle: true } 
                 },
                 tooltip: {
                     mode: 'index',
@@ -295,13 +303,11 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodySpacing: 6,
                     usePointStyle: true,
                     titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
-                    // Fuente monoespaciada para alinear números
                     bodyFont: { family: "'Roboto Mono', 'Menlo', monospace", size: 13, weight: '500' }, 
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
                             let label = context.dataset.label || '';
-                            // CORRECCIÓN DE ESPACIADO: Solo un espacio después de los dos puntos
                             if (label) label += ': '; 
                             if (context.parsed.y !== null) {
                                 label += context.parsed.y.toLocaleString();
@@ -336,6 +342,46 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     })
+
+    // 2. INICIAR LAS OLAS SI ESTÁN ACTIVAS
+    if (ENABLE_WAVE_ANIMATION && !isSingleDay) {
+        startWaveAnimation(chartInstance);
+    }
+}
+
+// ==========================================
+// 🌊 MOTOR DE ANIMACIÓN SENOIDAL (SIN CORTES) 🌊
+// ==========================================
+function startWaveAnimation(chart) {
+    // 1. Guardar copia de datos originales para no degradarlos con el tiempo
+    originalDatasetsData = chart.data.datasets.map(dataset => [...dataset.data]);
+
+    const amplitude = 5; // Altura de la ola (píxeles)
+    const frequency = 0.5; // Cuántas "colinas" tiene la ola
+    const speed = 0.003; // Velocidad del movimiento
+
+    function animate() {
+        const time = Date.now();
+
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+            const originalData = originalDatasetsData[datasetIndex];
+            
+            // Recalcular cada punto basado en el tiempo
+            dataset.data = originalData.map((val, index) => {
+                // Función matemática: Y = Base + Seno(posición + tiempo)
+                // Usamos datasetIndex para que las capas se muevan ligeramente desfasadas (efecto líquido)
+                const offset = Math.sin(index * frequency + time * speed + datasetIndex) * amplitude;
+                return val + offset;
+            });
+        });
+
+        // Actualizar gráfico en modo 'none' para máximo rendimiento (sin recalcular ejes)
+        chart.update('none');
+        
+        animationId = requestAnimationFrame(animate);
+    }
+
+    animate();
 }
 
 // --- CARGA INICIAL ---
