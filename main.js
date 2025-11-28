@@ -390,7 +390,7 @@ async function refreshDataInBackground() {
     }
 }
 
-// --- CARGA INICIAL (CON LOG DE HORA ACTUAL Y ZONA HORARIA FORZADA) ---
+// --- CARGA INICIAL (LOG DE DATA COMPLETA EN UNA LÍNEA) ---
 async function loadData() {
   const loader = document.getElementById('loader')
   const content = document.getElementById('dashboard-content')
@@ -410,25 +410,13 @@ async function loadData() {
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
     // ============================================================
-    // 🛠️ NUEVO: LOG DE HORA ACTUAL EN COLOMBO 🛠️
+    // 🛠️ BLOQUE DE DIAGNÓSTICO (LOG ÚNICO Y COMPLETO) 🛠️
     // ============================================================
-    const now = new Date();
-    const currentColomboTime = now.toLocaleString('es-ES', { 
-        timeZone: 'Asia/Colombo',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false
-    });
-    console.log(
-        `%c[LOCAL TIME] Here is ⌚ ${currentColomboTime} in Colombo (IST/SLST)`, 
-        'background: #3498db; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
-    );
-    // ============================================================
-
-    // 🛠️ LOG DE TIMESTAMP DEL MENSAJE (El que muestra 22:00:27) 🛠️
     try {
+        // ACTUALIZACIÓN: Incluimos 'type' en la selección
         const { data: lastMsgData } = await supabase
             .from('messages')
-            .select('brand, extra1, date, id')
+            .select('brand, type, extra1, date, id') 
             .order('date', { ascending: false })
             .limit(1);
 
@@ -436,21 +424,23 @@ async function loadData() {
             const lastMsg = lastMsgData[0];
             const msgDate = new Date(lastMsg.date);
             
-            // Forzamos la zona horaria para el timestamp del mensaje
+            // Forzamos la zona horaria de Colombo para el timestamp
             const formattedDate = msgDate.toLocaleString('es-ES', { 
                 day: '2-digit', month: '2-digit', year: 'numeric', 
                 hour: '2-digit', minute: '2-digit', second: '2-digit',
                 timeZone: 'Asia/Colombo' 
             });
 
+            // LOG ÚNICO CON TODOS LOS CAMPOS SOLICITADOS
             console.log(
-                `%c[SYNC] Message Timestamp: ${lastMsg.brand} | Date: ${formattedDate}`, 
+                `%c[SYNC] Brand: ${lastMsg.brand} | Type: ${lastMsg.type || 'N/A'} | Extra1: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
                 'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
             );
         }
     } catch (e) {
         console.warn("No se pudo obtener el log de sincronización.");
     }
+    // ============================================================
 
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
