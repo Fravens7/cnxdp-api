@@ -2,15 +2,16 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
-
+// --- CONFIGURACIÓN VISUAL (Paleta Sólida Profesional - Tono Medio) ---
+// Colores sólidos pero menos "neón", más serios y fáciles de ver.
 const brandPalette = {
-  'M1': { border: '#2563eb', bg: '#3b82f6' }, // Azul Royal Vibrante
-  'K1': { border: '#059669', bg: '#10b981' }, // Esmeralda Intenso
-  'B1': { border: '#ea580c', bg: '#f97316' }, // Naranja Solar
-  'B2': { border: '#9333ea', bg: '#a855f7' }, // Púrpura Eléctrico
-  'B3': { border: '#0284c7', bg: '#0ea5e9' }, // Cian Profundo
-  'B4': { border: '#65a30d', bg: '#84cc16' }, // Lima Fresco
-  'M2': { border: '#dc2626', bg: '#ef4444' }, // Rojo Cereza
+  'M1': { border: '#1d4ed8', bg: '#3b82f6' }, // Azul profesional
+  'K1': { border: '#047857', bg: '#10b981' }, // Verde esmeralda serio
+  'B1': { border: '#c2410c', bg: '#f97316' }, // Naranja calido
+  'B2': { border: '#7e22ce', bg: '#a855f7' }, // Púrpura medio
+  'B3': { border: '#0369a1', bg: '#0ea5e9' }, // Azul cielo profundo
+  'B4': { border: '#4d7c0f', bg: '#84cc16' }, // Verde oliva vibrante
+  'M2': { border: '#b91c1c', bg: '#ef4444' }, // Rojo intenso
 }
 const defaultColors = ['#475569', '#64748b', '#94a3b8']
 
@@ -30,7 +31,8 @@ let visibleDateKeys = [];
 function getBrandColor(brand, index) {
   if (brandPalette[brand]) return brandPalette[brand]
   const color = defaultColors[index % defaultColors.length]
-  return { border: color, bg: color + '99' }
+  // Si no hay marca, usamos un gris sólido también
+  return { border: color, bg: color }
 }
 
 function formatDateKey(dateObj) {
@@ -235,7 +237,7 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     })
 }
 
-// --- RENDER CHART (MODIFICADO PARA COLORES SÓLIDOS EN LEYENDA) ---
+// --- RENDER CHART (Colores Sólidos y Espaciado Tooltip Corregido) ---
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
     if (chartInstance) chartInstance.destroy();
@@ -253,18 +255,13 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             label: brand,
             data: chartData,
             borderColor: style.border,
-            backgroundColor: style.bg,
+            backgroundColor: style.bg, // Color sólido
             borderWidth: 2,
             tension: isSingleDay ? 0 : 0.35,
             fill: true,
-            
-            // --- CAMBIO VISUAL CLAVE ---
-            // Usamos style.bg (el color de relleno del área) para el fondo del punto
-            // Así la leyenda muestra exactamente el color que se ve en el gráfico
             pointBackgroundColor: style.bg, 
             pointBorderColor: style.border,
             pointBorderWidth: 1, 
-            
             pointRadius: isSingleDay ? [0, 5, 0] : 0, 
             pointHoverRadius: 7,
             pointHoverBackgroundColor: style.bg,
@@ -284,12 +281,7 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                 legend: { 
                     position: 'top', 
                     align: 'end', 
-                    labels: { 
-                        usePointStyle: true, 
-                        boxWidth: 8, 
-                        font: { size: 11 },
-                        usePointStyle: true // Asegura estilo circular
-                    } 
+                    labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, usePointStyle: true } 
                 },
                 tooltip: {
                     mode: 'index',
@@ -303,14 +295,14 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodySpacing: 6,
                     usePointStyle: true,
                     titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
-                    // Usamos fuente monoespaciada para los números para que alineen mejor
+                    // Fuente monoespaciada para alinear números
                     bodyFont: { family: "'Roboto Mono', 'Menlo', monospace", size: 13, weight: '500' }, 
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
                             let label = context.dataset.label || '';
-                            // Agregamos espacios para separar nombre del valor
-                            if (label) label += ':  '; 
+                            // CORRECCIÓN DE ESPACIADO: Solo un espacio después de los dos puntos
+                            if (label) label += ': '; 
                             if (context.parsed.y !== null) {
                                 label += context.parsed.y.toLocaleString();
                             }
