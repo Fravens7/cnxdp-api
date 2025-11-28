@@ -2,16 +2,18 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key)
 
-// --- CONFIGURACIÓN VISUAL ---
+
+// --- CONFIGURACIÓN VISUAL (Colores Sólidos para evitar mezclas) ---
 const brandPalette = {
-  'M1': { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.6)' }, 
-  'K1': { border: '#10b981', bg: 'rgba(16, 185, 129, 0.6)' }, 
-  'B1': { border: '#f97316', bg: 'rgba(249, 115, 22, 0.6)' }, 
-  'B2': { border: '#a855f7', bg: 'rgba(168, 85, 247, 0.6)' }, 
-  'B3': { border: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.6)' }, 
-  'B4': { border: '#84cc16', bg: 'rgba(132, 204, 22, 0.6)' }, 
-  'M2': { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.6)' }, 
+  'M1': { border: '#2563eb', bg: '#3b82f6' }, // Azul intenso
+  'K1': { border: '#059669', bg: '#10b981' }, // Verde esmeralda
+  'B1': { border: '#ea580c', bg: '#f97316' }, // Naranja vibrante
+  'B2': { border: '#9333ea', bg: '#a855f7' }, // Morado
+  'B3': { border: '#0284c7', bg: '#0ea5e9' }, // Azul cielo
+  'B4': { border: '#65a30d', bg: '#84cc16' }, // Verde lima
+  'M2': { border: '#dc2626', bg: '#ef4444' }, // Rojo puro
 }
+// Colores por defecto también sólidos por si acaso
 const defaultColors = ['#64748b', '#94a3b8', '#cbd5e1']
 
 // VARIABLES GLOBALES
