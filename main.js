@@ -299,19 +299,18 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                     bodyColor: '#334155',
                     borderColor: '#e2e8f0',
                     borderWidth: 1,
-                    // AJUSTES DE ESPACIADO Y ALINEACIÓN
-                    padding: { top: 10, bottom: 10, left: 12, right: 12 }, 
-                    boxPadding: 6, // Espacio entre el cuadrito de color y el texto
-                    bodySpacing: 6, // Espacio entre líneas
+                    padding: 12, 
+                    bodySpacing: 6,
                     usePointStyle: true,
-                    titleFont: { family: "'Inter', sans-serif", size: 14, weight: '600' },
-                    bodyFont: { family: "'Inter', sans-serif", size: 13, weight: '500' },
-                    // ... resto de callbacks (itemSort, label, labelColor) igual que antes ...
+                    titleFont: { family: "'Inter', sans-serif", size: 14, weight: 'bold' },
+                    // Usamos fuente monoespaciada para los números para que alineen mejor
+                    bodyFont: { family: "'Roboto Mono', 'Menlo', monospace", size: 13, weight: '500' }, 
                     itemSort: (a, b) => b.raw - a.raw,
                     callbacks: {
                          label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label) label += ': ';
+                            // Agregamos espacios para separar nombre del valor
+                            if (label) label += ':  '; 
                             if (context.parsed.y !== null) {
                                 label += context.parsed.y.toLocaleString();
                             }
