@@ -1,229 +1,120 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BDT Cancellation Audit</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <meta charset="UTF-8">
+    <style>
+    /* 💥 ATENCIÓN: El color #161e4b es muy oscuro, lo igualamos a bg-slate-900 para seguridad. */
+    .bg-indigo-600 { background-color: #161e4b !important; } 
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    body { font-family: 'Inter', sans-serif; }
+    
+    /* Scrollbar personalizada para la tabla */
+    .custom-scroll::-webkit-scrollbar { height: 8px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b4; }
 
-  <title>CanX Analytics Dashboard</title>
-
-  
-
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-
-
-  <style>
-
-    body { font-family: 'Inter', sans-serif; }
-
-    
-
-    /* Scrollbar personalizada para la tabla */
-
-    .custom-scroll::-webkit-scrollbar { height: 8px; }
-
-    .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
-
-    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-
-    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-
-
-    /* OCULTAR SCROLLBAR DEL CARRUSEL DE FECHAS (Para que se vea limpio) */
-
-    .hide-scroll::-webkit-scrollbar {
-
-        display: none;
-
-    }
-
-    .hide-scroll {
-
-        -ms-overflow-style: none;  /* IE and Edge */
-
-        scrollbar-width: none;  /* Firefox */
-
-    }
-
-  </style>
-
+    /* OCULTAR SCROLLBAR DEL CARRUSEL DE FECHAS */
+    .hide-scroll::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scroll {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+  </style>
 </head>
-
 <body class="bg-slate-50 text-slate-800">
 
-
-
-  <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-      <div class="flex justify-between h-16">
-
-        <div class="flex items-center gap-3">
-
-          <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold">CX</div>
-
-          <span class="text-xl font-bold text-slate-800 tracking-tight">CanX Analytics</span>
-
-        </div>
-
-        <div class="flex items-center">
-
-          <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full" id="last-update">Updating...</span>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </nav>
-
-
-
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-    
-
-    <div class="mb-8">
-
-      <h1 class="text-2xl font-bold text-slate-900">Daily Volume Audit</h1>
-
-      <p class="text-slate-500 mt-1">Visualizing daily message volume movement by brand to identify trends.</p>
-
-    </div>
-
-
-
-    <div id="loader" class="flex justify-center items-center h-64">
-
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-
-    </div>
-
-
-
-    <div id="dashboard-content" class="hidden space-y-6">
-
-      
-
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2">
-
-        <div class="flex items-center justify-between px-2 mb-2">
-
-          <h3 class="text-sm font-semibold text-slate-700">Filter by Date Range</h3>
-
-          <span class="text-xs text-slate-400">Select dates to include/exclude</span>
-
-        </div>
-
-
-
-        <div class="relative flex items-center group">
-
-            
-
-            <button id="scroll-left-btn" class="absolute left-0 z-10 p-1 bg-white border border-slate-200 rounded-full shadow-md text-slate-500 hover:text-indigo-600 hover:border-indigo-300 -ml-2 hidden md:flex">
-
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-
-                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-
-                </svg>
-
-            </button>
-
-
-
-            <div id="date-selector-container" class="flex overflow-x-auto gap-2 py-2 px-1 w-full hide-scroll scroll-smooth">
-
-                </div>
-
-
-
-            <button id="scroll-right-btn" class="absolute right-0 z-10 p-1 bg-white border border-slate-200 rounded-full shadow-md text-slate-500 hover:text-indigo-600 hover:border-indigo-300 -mr-2 hidden md:flex">
-
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-
-                </svg>
-
-            </button>
-
-        </div>
-
-      </div>
-
-
-
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-
-        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4">
-
-            <div><h2 class="text-lg font-semibold text-slate-800">Daily Volume by Brand</h2></div>
-
-        </div>
-
-        <div class="relative h-[450px] w-full">
-
-          <canvas id="chart"></canvas>
-
-        </div>
-
-      </div>
-
-
-
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
-
-        <div class="px-6 py-4 border-b border-slate-100 bg-white">
-
-          <h2 class="text-lg font-semibold text-slate-800">Daily Breakdown</h2>
-
-          <p class="text-sm text-slate-500">Detailed volume count per day per brand.</p>
-
-        </div>
-
-        <div class="overflow-x-auto custom-scroll p-2">
-
-          <table class="w-full text-sm text-left" id="data-table">
-
-            <thead class="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
-
-              <tr id="table-header-row"></tr>
-
-            </thead>
-
-            <tbody class="divide-y divide-slate-100 text-slate-600" id="table-body"></tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-
-
-    </div>
-
-  </main>
-
-
-
-  <script src="config.js"></script>
-
-  <script type="module" src="main.js"></script>
-
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold">BDT</div>           <span class="text-xl font-bold text-slate-800 tracking-tight">BDT Analytics</span>
+        </div>
+        <div class="flex items-center">
+          <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full" id="last-update">Updating...</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-900">Deposit Cancellation Audit</h1>
+      <p class="text-slate-500 mt-1">Reviewing daily volume split by brand to confirm trend changes.</p>
+    </div>
+
+    <div id="loader" class="flex justify-center items-center h-64">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    </div>
+
+    <div id="dashboard-content" class="hidden space-y-6">
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2">
+        <div class="flex items-center justify-between px-2 mb-2">
+          <h3 class="text-sm font-semibold text-slate-700">Filter by Date Range</h3>
+          <span class="text-xs text-slate-400">Select dates to include/exclude</span>
+        </div>
+
+        <div class="relative flex items-center group">
+            
+            <button id="scroll-left-btn" class="absolute left-0 z-10 p-1 bg-white border border-slate-200 rounded-full shadow-md text-slate-500 hover:text-indigo-600 hover:border-indigo-300 -ml-2 hidden md:flex">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+            </button>
+
+            <div id="date-selector-container" class="flex overflow-x-auto gap-2 py-2 px-1 w-full hide-scroll scroll-smooth">
+                </div>
+
+            <button id="scroll-right-btn" class="absolute right-0 z-10 p-1 bg-white border border-slate-200 rounded-full shadow-md text-slate-500 hover:text-indigo-600 hover:border-indigo-300 -mr-2 hidden md:flex">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+            </button>
+
+        </div>
+
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4">
+            <div><h2 class="text-lg font-semibold text-slate-800">Volume Trend by Brand</h2></div>
+        </div>
+        <div class="relative h-[450px] w-full">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+        <div class="px-6 py-4 border-b border-slate-100 bg-white">
+          <h2 class="text-lg font-semibold text-slate-800">Daily Breakdown</h2>
+          <p class="text-sm text-slate-500">Detailed volume count per day per brand.</p>
+        </div>
+        <div class="overflow-x-auto custom-scroll p-2">
+          <table class="w-full text-sm text-left" id="data-table">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
+              <tr id="table-header-row"></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-600" id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script src="config.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
-
 </html>
