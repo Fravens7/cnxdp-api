@@ -207,18 +207,17 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     const tbody = document.getElementById('table-body')
     
     // 1. Encabezados
-    // Alineamos FECHA a la izquierda
+    // Fecha a la izquierda
     theadRow.innerHTML = '<th class="px-4 py-3 text-left font-semibold text-slate-600 w-24">DATE</th>'
     
     sortedBrands.forEach(b => {
         const colorStyle = brandPalette[b] ? `style="color: ${brandPalette[b].border}"` : '';
-        // Alineamos MARCAS a la derecha para coincidir con los números
-        // Agregamos min-w para que no se aplasten
+        // Marcas a la derecha (para alinear con números)
         theadRow.innerHTML += `<th class="px-4 py-3 text-right font-semibold" ${colorStyle}>${b}</th>`
     })
     
-    // Columna TOTAL: Agregamos borde izquierdo y fondo suave para destacar
-    theadRow.innerHTML += '<th class="px-4 py-3 text-right font-bold text-slate-700 border-l border-slate-200 bg-slate-50">TOTAL</th>'
+    // Columna TOTAL: CENTRADA (text-center) para destacar
+    theadRow.innerHTML += '<th class="px-4 py-3 text-center font-bold text-slate-700 border-l border-slate-200 bg-slate-50">TOTAL</th>'
 
     tbody.innerHTML = ''
     
@@ -235,17 +234,16 @@ function renderTable(sortedBrands, sortedDates, pivot) {
         let rowHtml = `<td class="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap">${date}</td>`
         let total = 0
         
-        // Celdas Marcas
+        // Celdas Marcas (Alineadas a la derecha)
         sortedBrands.forEach(brand => {
             const count = (pivot[date] && pivot[date][brand]) || 0
             total += count
-            // Alineación a la DERECHA (text-right) para números
             const textClass = count === 0 ? 'text-slate-300' : 'text-slate-600 font-medium'
             rowHtml += `<td class="px-4 py-4 text-right ${textClass}">${count > 0 ? count.toLocaleString() : '-'}</td>`
         })
         
-        // Celda Total (Coincide estilo con su encabezado)
-        rowHtml += `<td class="px-4 py-4 text-right font-black text-slate-800 border-l border-slate-200 bg-slate-50">${total.toLocaleString()}</td>`
+        // Celda Total (CENTRADA para coincidir con el título)
+        rowHtml += `<td class="px-4 py-4 text-center font-black text-slate-800 border-l border-slate-200 bg-slate-50">${total.toLocaleString()}</td>`
         
         tr.innerHTML = rowHtml
         tbody.appendChild(tr)
