@@ -11,7 +11,7 @@
 
   <style>
     /* Estilo de color de fondo del logo personalizado */
-    .bg-custom-dark { background-color: #161e4b; }
+    .bg-custom-dark { background-color: #161e4b; } /* Color de fondo BDT */
 
     body { font-family: 'Inter', sans-serif; }
     
@@ -26,8 +26,8 @@
         display: none;
     }
     .hide-scroll {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
+        -ms-overflow-style: none;
+        scrollbar-width: none;
     }
   </style>
 </head>
@@ -37,8 +37,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
         <div class="flex items-center gap-3">
-          <div class="bg-custom-dark text-white p-2 rounded-lg font-bold">BDT</div> 
-          <span class="text-xl font-bold text-slate-800 tracking-tight">BDT Analytics</span> 
+          <div class="bg-custom-dark text-white p-2 rounded-lg font-bold">BDT</div>           <span class="text-xl font-bold text-slate-800 tracking-tight">BDT Analytics</span>
         </div>
         <div class="flex items-center">
           <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full" id="last-update">Updating...</span>
@@ -50,8 +49,7 @@
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-slate-900">Deposit Cancellation Audit</h1> 
-      <p class="text-slate-500 mt-1">Reviewing daily volume split by brand to confirm trend changes.</p> 
+      <h1 class="text-2xl font-bold text-slate-900">Deposit Cancellation Audit</h1>       <p class="text-slate-500 mt-1">Reviewing daily volume split by brand to confirm trend changes.</p>
     </div>
 
     <div id="loader" class="flex justify-center items-center h-64">
@@ -74,7 +72,7 @@
                 </svg>
             </button>
 
-                        <div id="date-selector-container" class="flex overflow-x-auto gap-2 py-2 w-full hide-scroll scroll-smooth">
+                        <div id="date-selector-container" class="flex overflow-x-auto gap-2 py-2 px-1 w-full hide-scroll scroll-smooth">
                 </div>
 
                         <button id="scroll-right-btn" class="absolute right-0 z-10 p-1 bg-white border border-slate-200 rounded-full shadow-md text-slate-500 hover:text-indigo-600 hover:border-indigo-300 -mr-2">
@@ -94,7 +92,7 @@
         <div class="relative h-[450px] w-full">
           <canvas id="chart"></canvas>
         </div>
-      </div>
+        </div>
 
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-8">
         <div class="px-6 py-4 border-b border-slate-100 bg-white">
