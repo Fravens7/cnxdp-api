@@ -390,6 +390,7 @@ async function refreshDataInBackground() {
     }
 }
 
+// --- CARGA INICIAL (CON LOG DE HORA ACTUAL Y ZONA HORARIA FORZADA) ---
 async function loadData() {
   const loader = document.getElementById('loader')
   const content = document.getElementById('dashboard-content')
@@ -409,8 +410,21 @@ async function loadData() {
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
 
     // ============================================================
-    // 🛠️ BLOQUE DE DIAGNÓSTICO (SYNC LOG) 🛠️
+    // 🛠️ NUEVO: LOG DE HORA ACTUAL EN COLOMBO 🛠️
     // ============================================================
+    const now = new Date();
+    const currentColomboTime = now.toLocaleString('es-ES', { 
+        timeZone: 'Asia/Colombo',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+    });
+    console.log(
+        `%c[LOCAL TIME] Here is ⌚ ${currentColomboTime} in Colombo (IST/SLST)`, 
+        'background: #3498db; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
+    );
+    // ============================================================
+
+    // 🛠️ LOG DE TIMESTAMP DEL MENSAJE (El que muestra 22:00:27) 🛠️
     try {
         const { data: lastMsgData } = await supabase
             .from('messages')
@@ -422,22 +436,21 @@ async function loadData() {
             const lastMsg = lastMsgData[0];
             const msgDate = new Date(lastMsg.date);
             
-            // CORRECCIÓN CLAVE: Agregamos timeZone: 'Asia/Colombo'
+            // Forzamos la zona horaria para el timestamp del mensaje
             const formattedDate = msgDate.toLocaleString('es-ES', { 
                 day: '2-digit', month: '2-digit', year: 'numeric', 
                 hour: '2-digit', minute: '2-digit', second: '2-digit',
-                timeZone: 'Asia/Colombo' // <-- FUERZA HORA DE COLOMBO/IST
+                timeZone: 'Asia/Colombo' 
             });
 
             console.log(
-                `%c[SYNC] Brand: ${lastMsg.brand} | Value: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
+                `%c[SYNC] Message Timestamp: ${lastMsg.brand} | Date: ${formattedDate}`, 
                 'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
             );
         }
     } catch (e) {
         console.warn("No se pudo obtener el log de sincronización.");
     }
-    // ============================================================
 
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
@@ -460,8 +473,8 @@ async function loadData() {
     
     setupRealtimeListener();
 
-    const now = new Date()
-    lastUpdateLabel.textContent = `Updated: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`
+    const currentUIUpdate = new Date()
+    lastUpdateLabel.textContent = `Updated: ${currentUIUpdate.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`
     loader.classList.add('hidden')
     content.classList.remove('hidden')
 
