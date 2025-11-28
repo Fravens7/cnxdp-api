@@ -23,8 +23,8 @@ let chartInstance = null;
 // VARIABLES PARA EL DRAG (BARRIDO)
 let isDragging = false;
 let dragStartIndex = -1;
-let dragMode = 'select'; // 'select' (encender) o 'deselect' (apagar)
-let visibleDateKeys = []; // Para saber el orden de los botones
+let dragMode = 'select';
+let visibleDateKeys = []; 
 
 // --- FUNCIONES UTILITARIAS ---
 function getBrandColor(brand, index) {
@@ -60,7 +60,7 @@ function setupScrollArrows() {
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
     container.innerHTML = '';
-    visibleDateKeys = []; // Reiniciar lista de orden
+    visibleDateKeys = []; 
 
     const startDate = new Date('2025-11-17'); 
     const endDate = new Date('2025-12-05'); 
@@ -68,18 +68,16 @@ function renderDateSelector() {
     let currentDate = new Date(startDate);
     let index = 0;
 
-    // Escuchar cuando se suelta el mouse en cualquier parte de la ventana
-    // para finalizar el arrastre correctamente
     window.onmouseup = () => {
         if (isDragging) {
             isDragging = false;
-            updateDashboard(); // Actualizar gráfica al soltar
+            updateDashboard(); 
         }
     };
 
     while (currentDate <= endDate) {
         const dateKey = formatDateKey(currentDate);
-        visibleDateKeys.push(dateKey); // Guardar orden
+        visibleDateKeys.push(dateKey); 
 
         const displayDay = currentDate.getDate();
         const displayMonth = currentDate.toLocaleDateString('en-US', { month: 'short' });
@@ -90,9 +88,8 @@ function renderDateSelector() {
         const isSelected = selectedDates.has(dateKey);
 
         const btn = document.createElement('button');
-        btn.id = `date-btn-${index}`; // ID único para manipular estilos rápido
+        btn.id = `date-btn-${index}`; 
         
-        // Estilos Base
         let classes = "flex-shrink-0 flex flex-col items-center justify-center px-3 py-1 rounded-lg border transition-all w-[55px] select-none ";
         
         if (!hasData) {
@@ -113,24 +110,16 @@ function renderDateSelector() {
             <span class="text-base leading-none pointer-events-none">${displayDay}</span>
         `;
 
-        // --- EVENTOS PARA EL "BARRIDO" (DRAG) ---
         if (hasData) {
-            // 1. Iniciar Arrastre
             btn.onmousedown = (e) => {
-                // Evitar selección de texto
                 e.preventDefault(); 
                 isDragging = true;
                 dragStartIndex = visibleDateKeys.indexOf(dateKey);
-                
-                // Si empiezo en uno seleccionado, modo = APAGAR. Si no, modo = ENCENDER.
                 dragMode = selectedDates.has(dateKey) ? 'deselect' : 'select';
-                
-                // Aplicar cambio al inicial inmediatamente
                 applySelectionLogic(dateKey);
                 updateButtonStyle(btn, dateKey);
             };
 
-            // 2. Moverse sobre otros botones
             btn.onmouseenter = () => {
                 if (isDragging) {
                     const currentIndex = visibleDateKeys.indexOf(dateKey);
@@ -147,17 +136,12 @@ function renderDateSelector() {
 
 // --- LÓGICA DEL BARRIDO ---
 function handleDragSelection(currentIndex) {
-    // Determinar rango (min a max) entre donde empecé y donde estoy
     const start = Math.min(dragStartIndex, currentIndex);
     const end = Math.max(dragStartIndex, currentIndex);
 
     for (let i = start; i <= end; i++) {
         const dateKey = visibleDateKeys[i];
-        
-        // Aplicar la lógica (Select o Deselect)
         applySelectionLogic(dateKey);
-        
-        // Actualizar visualmente el botón SIN recargar todo (Rendimiento)
         const btn = document.getElementById(`date-btn-${i}`);
         if (btn && !btn.disabled) {
             updateButtonStyle(btn, dateKey);
@@ -169,14 +153,12 @@ function applySelectionLogic(dateKey) {
     if (dragMode === 'select') {
         selectedDates.add(dateKey);
     } else {
-        // Evitamos borrar todo para no romper la gráfica (opcional)
         if (selectedDates.size > 1 || dragMode === 'select') {
              selectedDates.delete(dateKey);
         }
     }
 }
 
-// Función auxiliar para cambiar clases CSS al vuelo durante el arrastre
 function updateButtonStyle(btn, dateKey) {
     const isSelected = selectedDates.has(dateKey);
     if (isSelected) {
@@ -211,7 +193,6 @@ function updateDashboard() {
     })
 
     const sortedBrands = Array.from(brandsSet).sort((a, b) => brandTotals[b] - brandTotals[a]);
-    
     const chartLabels = sortedSelectedKeys.map(isoDate => formatDisplayDate(isoDate));
 
     renderTable(sortedBrands, chartLabels, pivot);
@@ -254,7 +235,7 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     })
 }
 
-// --- RENDER CHART ---
+// --- RENDER CHART (MODIFICADO PARA COLORES SÓLIDOS EN LEYENDA) ---
 function renderChart(sortedBrands, sortedDates, pivot) {
     const chartCanvas = document.getElementById('chart');
     if (chartInstance) chartInstance.destroy();
@@ -276,10 +257,19 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             borderWidth: 2,
             tension: isSingleDay ? 0 : 0.35,
             fill: true,
+            
+            // --- CAMBIO VISUAL CLAVE ---
+            // Usamos style.bg (el color de relleno del área) para el fondo del punto
+            // Así la leyenda muestra exactamente el color que se ve en el gráfico
+            pointBackgroundColor: style.bg, 
+            pointBorderColor: style.border,
+            pointBorderWidth: 1, 
+            
             pointRadius: isSingleDay ? [0, 5, 0] : 0, 
             pointHoverRadius: 7,
-            pointBackgroundColor: '#ffffff',
-            pointBorderWidth: 2
+            pointHoverBackgroundColor: style.bg,
+            pointHoverBorderColor: '#ffffff',
+            pointHoverBorderWidth: 2
         }
     })
 
@@ -291,7 +281,16 @@ function renderChart(sortedBrands, sortedDates, pivot) {
             maintainAspectRatio: false,
             layout: { padding: { left: 10, right: 10, top: 20, bottom: 0 } },
             plugins: {
-                legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } },
+                legend: { 
+                    position: 'top', 
+                    align: 'end', 
+                    labels: { 
+                        usePointStyle: true, 
+                        boxWidth: 8, 
+                        font: { size: 11 },
+                        usePointStyle: true // Asegura estilo circular
+                    } 
+                },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
@@ -314,6 +313,16 @@ function renderChart(sortedBrands, sortedDates, pivot) {
                                 label += context.parsed.y.toLocaleString();
                             }
                             return label;
+                        },
+                        // Forzamos que el color del cuadrito del tooltip coincida con el área y la leyenda
+                        labelColor: function(context) {
+                            const style = getBrandColor(context.dataset.label, context.datasetIndex);
+                            return {
+                                borderColor: style.border,
+                                backgroundColor: style.bg, // Color de relleno (igual al área)
+                                borderWidth: 1,
+                                borderRadius: 2
+                            };
                         }
                     }
                 }
