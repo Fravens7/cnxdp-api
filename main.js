@@ -260,18 +260,23 @@ function updateDashboard() {
     renderChart(sortedBrands, chartLabels, pivot);
 }
 
-// --- RENDER TABLE (LIMPIA + TOOLTIP EN TOTAL) ---
+// --- RENDER TABLE (DISEÑO LIMPIO + CENTRADO PERFECTO) ---
 function renderTable(sortedBrands, sortedDates, pivot) {
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
     
     // 1. Cabecera
+    // Nota: Aumenté el ancho de DATE a w-32 para estabilidad
     theadRow.innerHTML = '<th class="px-4 py-3 text-left font-semibold text-slate-600 w-32">DATE</th>'
+    
     sortedBrands.forEach(b => {
         const colorStyle = brandPalette[b] ? `style="color: ${brandPalette[b].border}"` : '';
+        // Marcas alineadas a la derecha (estándar numérico)
         theadRow.innerHTML += `<th class="px-4 py-3 text-right font-semibold" ${colorStyle}>${b}</th>`
     })
-    theadRow.innerHTML += '<th class="px-4 py-3 text-center font-bold text-slate-700 border-l border-slate-200 bg-slate-50">TOTAL</th>'
+    
+    // TOTAL Centrado perfectamente
+    theadRow.innerHTML += '<th class="px-4 py-3 text-center font-bold text-slate-700 border-l border-slate-200 bg-slate-50 w-24">TOTAL</th>'
 
     tbody.innerHTML = ''
     
@@ -283,18 +288,15 @@ function renderTable(sortedBrands, sortedDates, pivot) {
     const displayDates = [...sortedDates].reverse();
 
     displayDates.forEach((date, index) => {
-        // Obtenemos la fecha anterior para comparar
         const prevDate = displayDates[index + 1];
-
         const tr = document.createElement('tr')
         tr.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors group/row"
         
-        // Columna Fecha
         let rowHtml = `<td class="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">${date}</td>`
         let rowTotal = 0
         let prevRowTotal = 0
 
-        // Columnas de Marcas (LIMPIAS, SOLO NÚMEROS)
+        // Columnas de Marcas (Limpias)
         sortedBrands.forEach(brand => {
             const count = (pivot[date] && pivot[date][brand]) || 0
             const prevCount = prevDate ? ((pivot[prevDate] && pivot[prevDate][brand]) || 0) : null;
@@ -302,53 +304,40 @@ function renderTable(sortedBrands, sortedDates, pivot) {
             rowTotal += count
             if (prevCount !== null) prevRowTotal += prevCount;
 
-            // Si es 0 mostramos guion, si no el numero normal
             const textClass = count === 0 ? 'text-slate-300' : 'text-slate-600 font-medium';
             const displayNum = count === 0 ? '-' : count.toLocaleString();
             rowHtml += `<td class="px-4 py-3 text-right ${textClass}">${displayNum}</td>`
         })
 
-        // --- COLUMNA TOTAL CON MAGIA (Delta + Tooltip) ---
-        // Calculamos diferencia solo para el total
-        let deltaHtml = '';
+        // --- COLUMNA TOTAL (LIMPIA Y CENTRADA) ---
         let tooltipHtml = '';
         
         if (prevDate) {
             const diff = rowTotal - prevRowTotal;
-            const isReduction = diff < 0; // Bueno (Verde)
-            const arrow = isReduction ? '▼' : '▲';
-            const colorClass = isReduction ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
-            const sign = diff > 0 ? '+' : ''; // Para que diga +20 o -20
-
-            // 1. La pastilla pequeña (Pill) visible siempre
-            deltaHtml = `
-                <span class="inline-flex items-center justify-center px-1.5 py-0.5 ml-2 rounded text-[10px] font-bold ${colorClass}">
-                    ${arrow} ${Math.abs(diff)}
-                </span>
-            `;
-
-            // 2. El Tooltip (Ventana negra invisible que aparece al hover)
-            // Frase en inglés como pediste: "Total today: X | Change: -Y vs Yesterday"
-            const tooltipText = `Total today: ${rowTotal.toLocaleString()} | Change: ${sign}${diff} vs Yesterday`;
+            const sign = diff > 0 ? '+' : '';
+            // Colores para el tooltip (no para la celda)
+            // Verde si bajó (bueno), Rojo si subió (malo)
+            const tooltipColor = diff < 0 ? 'text-emerald-400' : (diff > 0 ? 'text-rose-400' : 'text-slate-300');
             
+            // Tooltip ultra resumido: "Vs Yesterday: -212"
             tooltipHtml = `
-                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover/total:block z-50 w-max">
-                    <div class="bg-slate-800 text-white text-xs rounded py-1 px-2 shadow-lg relative">
-                        ${tooltipText}
+                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover/total:block z-50 w-max pointer-events-none">
+                    <div class="bg-slate-800 text-white text-xs font-medium rounded py-1.5 px-3 shadow-xl relative flex flex-col items-center">
+                        <span class="text-[10px] uppercase tracking-wide text-slate-400 mb-0.5">Vs Yesterday</span>
+                        <span class="text-sm font-bold ${tooltipColor}">${sign}${diff}</span>
+                        
                         <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
                     </div>
                 </div>
             `;
         }
 
-        // Construcción de la celda Total
-        // Nota la clase 'group/total' y 'relative' para que funcione el tooltip
+        // Construcción de celda Total:
+        // 1. text-center: Para arreglar tus problemas de alineación.
+        // 2. group/total y relative: Para que funcione el tooltip.
         rowHtml += `
-            <td class="px-4 py-3 text-right font-black text-slate-800 border-l border-slate-200 bg-slate-50 relative group/total cursor-help">
-                <div class="flex items-center justify-end">
-                    <span>${rowTotal.toLocaleString()}</span>
-                    ${deltaHtml}
-                </div>
+            <td class="px-4 py-3 text-center font-black text-slate-800 border-l border-slate-200 bg-slate-50 relative group/total cursor-help select-none">
+                ${rowTotal.toLocaleString()}
                 ${tooltipHtml}
             </td>`
         
@@ -356,36 +345,7 @@ function renderTable(sortedBrands, sortedDates, pivot) {
         tbody.appendChild(tr)
     })
 }
-// Función auxiliar para generar el HTML del número + la flechita
-function generateTrendCell(current, previous, isTotal = false) {
-    // Si el valor es 0, lo mostramos gris suave
-    if (current === 0) return '<span class="text-slate-300">-</span>';
 
-    const numHtml = `<span class="${isTotal ? 'text-lg' : 'text-sm'} text-slate-700">${current.toLocaleString()}</span>`;
-
-    // Si no hay día anterior (es el último dato) o son iguales, solo devolvemos el número
-    if (previous === null || current === previous) {
-        return numHtml;
-    }
-
-    const diff = current - previous;
-    const isReduction = diff < 0; // ¿Bajó el volumen? (Bueno = Verde)
-    
-    // Configuración de colores
-    // Verde (Emerald) si bajó (bueno), Rojo (Rose) si subió (malo)
-    const colorClass = isReduction ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
-    const arrow = isReduction ? '▼' : '▲';
-    
-    // Solo mostramos la etiqueta si la diferencia es relevante (opcional, aquí mostramos todo)
-    // El Math.abs(diff) quita el signo negativo porque ya usamos la flecha hacia abajo
-    const badgeHtml = `
-        <div class="inline-flex items-center justify-center px-1.5 py-0.5 ml-1.5 rounded text-[10px] font-bold ${colorClass} bg-opacity-60">
-            <span class="mr-0.5 text-[8px]">${arrow}</span>${Math.abs(diff)}
-        </div>
-    `;
-
-    return `<div class="flex items-center justify-end w-full">${numHtml}${badgeHtml}</div>`;
-}
 
 // --- RENDER CHART ---
 function renderChart(sortedBrands, sortedDates, pivot) {
