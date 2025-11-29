@@ -44,6 +44,56 @@ function formatDisplayDate(dateString) {
   return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// --- FUNCIÓN PARA FORMATEAR LOGS ---
+function formatLogTime(dateString) {
+    if (!dateString) return '--:--';
+    try {
+        const dateObj = new Date(dateString);
+        // Formato simple HH:MM:SS
+        return dateObj.toLocaleTimeString('en-US', { hour12: false });
+    } catch (e) {
+        return dateString.split(' ')[1]?.split('.')[0] || dateString;
+    }
+}
+
+// --- ACTUALIZAR WIDGET DE LOGS (2 LÍNEAS) ---
+async function updateLogWidget() {
+    const logContainer = document.getElementById('last-update');
+    
+    try {
+        // Traemos los últimos 2 mensajes reales
+        const { data: messages } = await supabase
+            .from('messages')
+            .select('*')
+            .order('id', { ascending: false })
+            .limit(2);
+
+        if (messages && messages.length > 0) {
+            let html = '';
+            messages.forEach(msg => {
+                const time = formatLogTime(msg.date);
+                // Formato: Marca | Tipo | Usuario | ID | Hora
+                html += `
+                <div class="flex items-center gap-2 whitespace-nowrap">
+                    <span class="font-bold text-slate-800">${msg.brand || '?'}</span>
+                    <span class="text-slate-300">|</span>
+                    <span class="text-indigo-600 font-medium">${msg.type || '-'}</span>
+                    <span class="text-slate-300">|</span>
+                    <span class="text-slate-500">${msg.extra1 || '-'}</span>
+                    <span class="text-slate-300">|</span>
+                    <span class="text-slate-400 text-[10px]">${msg.extra2 || '-'}</span>
+                    <span class="ml-auto text-xs font-bold bg-slate-100 px-1 rounded text-slate-600">${time}</span>
+                </div>`;
+            });
+            logContainer.innerHTML = html;
+        } else {
+            logContainer.innerHTML = '<span class="text-slate-400">Esperando datos...</span>';
+        }
+    } catch (e) {
+        console.error("Error actualizando widget logs:", e);
+    }
+}
+
 // --- CONFIGURACIÓN DE FLECHAS ---
 function setupScrollArrows() {
     const container = document.getElementById('date-selector-container');
@@ -59,7 +109,6 @@ function setupScrollArrows() {
 // --- RENDERIZADO DEL SELECTOR ---
 function renderDateSelector() {
     const container = document.getElementById('date-selector-container');
-    // Guardar posición de scroll para evitar saltos al redibujar
     const currentScroll = container.scrollLeft;
     
     container.innerHTML = '';
@@ -347,19 +396,15 @@ function setupRealtimeListener() {
     console.log("⚡️ Escuchando cambios en tiempo real...");
     supabase
         .channel('public:messages')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
-            console.log('🔄 Cambio detectado en DB! Actualizando dashboard...', payload);
-            refreshDataInBackground();
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+            console.log('🔄 Nuevo mensaje! Actualizando logs...');
+            updateLogWidget(); // Actualiza solo los logs al instante
+            refreshDataInBackground(); // Actualiza la gráfica
         })
         .subscribe();
 }
 
 async function refreshDataInBackground() {
-    const lastUpdateLabel = document.getElementById('last-update');
-    
-    lastUpdateLabel.textContent = "Updating...";
-    lastUpdateLabel.classList.add("animate-pulse", "text-indigo-600");
-
     try {
         const cutOffDate = new Date('2025-11-20');
         let { data, error } = await supabase
@@ -380,25 +425,20 @@ async function refreshDataInBackground() {
         renderDateSelector(); 
         updateDashboard();
 
-        const now = new Date();
-        lastUpdateLabel.textContent = `Live: ${now.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}`;
-        lastUpdateLabel.classList.remove("animate-pulse", "text-indigo-600");
-        lastUpdateLabel.classList.add("text-green-600", "font-bold");
-
     } catch (err) {
         console.error("Error en refresh background:", err);
     }
 }
 
-// --- CARGA INICIAL (LOG DE DATA COMPLETA EN UNA LÍNEA) ---
+// --- CARGA INICIAL ---
 async function loadData() {
   const loader = document.getElementById('loader')
   const content = document.getElementById('dashboard-content')
-  const lastUpdateLabel = document.getElementById('last-update')
 
   try {
     const cutOffDate = new Date('2025-11-20')
     
+    // Carga datos para la gráfica
     let { data, error } = await supabase
       .from('daily_brand_counts') 
       .select('*')
@@ -408,39 +448,9 @@ async function loadData() {
     if (error) throw error
 
     globalData = data.filter(d => d.brand !== 'SYSTEM' && d.brand !== 'Otros');
-
-    // ============================================================
-    // 🛠️ BLOQUE DE DIAGNÓSTICO (LOG ÚNICO Y COMPLETO) 🛠️
-    // ============================================================
-    try {
-        // ACTUALIZACIÓN: Incluimos 'type' en la selección
-        const { data: lastMsgData } = await supabase
-            .from('messages')
-            .select('brand, type, extra1, date, id') 
-            .order('date', { ascending: false })
-            .limit(1);
-
-        if (lastMsgData && lastMsgData.length > 0) {
-            const lastMsg = lastMsgData[0];
-            const msgDate = new Date(lastMsg.date);
-            
-            // Forzamos la zona horaria de Colombo para el timestamp
-            const formattedDate = msgDate.toLocaleString('es-ES', { 
-                day: '2-digit', month: '2-digit', year: 'numeric', 
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                timeZone: 'Asia/Colombo' 
-            });
-
-            // LOG ÚNICO CON TODOS LOS CAMPOS SOLICITADOS
-            console.log(
-                `%c[SYNC] Brand: ${lastMsg.brand} | Type: ${lastMsg.type || 'N/A'} | Extra1: ${lastMsg.extra1 || 'N/A'} | Date: ${formattedDate}`, 
-                'background: #22c55e; color: #fff; padding: 4px; border-radius: 4px; font-weight: bold;'
-            );
-        }
-    } catch (e) {
-        console.warn("No se pudo obtener el log de sincronización.");
-    }
-    // ============================================================
+    
+    // Carga los logs iniciales
+    await updateLogWidget();
 
     if (globalData.length > 0) {
         const lastItem = globalData[globalData.length - 1];
@@ -463,8 +473,6 @@ async function loadData() {
     
     setupRealtimeListener();
 
-    const currentUIUpdate = new Date()
-    lastUpdateLabel.textContent = `Updated: ${currentUIUpdate.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`
     loader.classList.add('hidden')
     content.classList.remove('hidden')
 
