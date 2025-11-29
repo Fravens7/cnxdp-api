@@ -44,14 +44,19 @@ function formatDisplayDate(dateString) {
   return adjustedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// --- FUNCIÓN PARA FORMATEAR LOGS ---
+
+// --- FUNCIÓN PARA FORMATEAR LOGS (CORREGIDA) ---
 function formatLogTime(dateString) {
     if (!dateString) return '--:--';
     try {
         const dateObj = new Date(dateString);
-        // Formato simple HH:MM:SS
-        return dateObj.toLocaleTimeString('en-US', { hour12: false });
+        // TRUCO: Usamos 'timeZone: UTC' para que el navegador NO le sume otras 5.5 horas
+        return dateObj.toLocaleTimeString('en-US', { 
+            hour12: false, 
+            timeZone: 'UTC' 
+        });
     } catch (e) {
+        // Fallback por si la fecha no es estándar
         return dateString.split(' ')[1]?.split('.')[0] || dateString;
     }
 }
