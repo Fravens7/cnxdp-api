@@ -488,3 +488,4 @@ async function loadData() {
 }
 
 loadData()
+iniciarAnimacionLogo(brandPalette);
