@@ -1,12 +1,40 @@
 // animations.js
 
+// 1. Inyectamos el estilo CSS del "Sweep" (Brillo) dinámicamente
+const style = document.createElement('style');
+style.innerHTML = `
+  @keyframes sweepShine {
+    0% { transform: translateX(-150%) skewX(-20deg); }
+    100% { transform: translateX(150%) skewX(-20deg); }
+  }
+  
+  .sweep-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      to right, 
+      rgba(255, 255, 255, 0) 0%, 
+      rgba(255, 255, 255, 0.6) 50%, 
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: translateX(-150%) skewX(-20deg);
+    animation: sweepShine 0.8s ease-in-out;
+    pointer-events: none;
+  }
+`;
+document.head.appendChild(style);
+
 export function iniciarAnimacionLogo(brandPalette) {
     const logo = document.getElementById('brand-logo');
     if (!logo) return;
 
-    // Secuencia: BDT -> M1 -> M2 -> B1 ... -> K1 -> (Repetir)
+    // Secuencia de marcas
     const sequence = [
-        { text: 'BDT', color: '#161e4b' }, // Estado base
+        { text: 'BDT', color: '#161e4b' }, 
         { text: 'M1',  color: brandPalette['M1'].bg },
         { text: 'M2',  color: brandPalette['M2'].bg },
         { text: 'B1',  color: brandPalette['B1'].bg },
@@ -18,29 +46,20 @@ export function iniciarAnimacionLogo(brandPalette) {
 
     let currentIndex = 0;
 
-    // Intervalo infinito cada 3.5 segundos
     setInterval(() => {
-        // 1. FASE DE SALIDA: Giro 3D y encogimiento (Efecto "Flip")
-        // Usamos estilos inline para controlar la transformación exacta
-        logo.style.transform = 'perspective(400px) rotateX(90deg) scale(0.9)'; 
-        logo.style.opacity = '0.8';
+        // 1. Activamos el efecto de brillo (agregando la clase)
+        logo.classList.remove('sweep-effect'); // Reset por si acaso
+        void logo.offsetWidth; // Truco para reiniciar la animación CSS
+        logo.classList.add('sweep-effect');
 
+        // 2. Cambiamos el texto y color justo cuando el brillo pasa por el medio (a los 300ms)
         setTimeout(() => {
-            // 2. CAMBIO DE DATOS (Oculto)
             currentIndex = (currentIndex + 1) % sequence.length;
             const item = sequence[currentIndex];
             
             logo.textContent = item.text;
             logo.style.backgroundColor = item.color;
-            
-            // Un pequeño brillo sutil al cambiar (box-shadow)
-            logo.style.boxShadow = `0 10px 15px -3px ${item.color}66`; // 66 es transparencia
+        }, 300); // Sincronizado con el paso del brillo
 
-            // 3. FASE DE ENTRADA: Regreso elástico
-            logo.style.transform = 'perspective(400px) rotateX(0deg) scale(1)';
-            logo.style.opacity = '1';
-            
-        }, 500); // Esperamos 0.5s (mitad de la transición CSS) para cambiar el texto
-
-    }, 3500);
+    }, 4000); // Cada 4 segundos
 }
