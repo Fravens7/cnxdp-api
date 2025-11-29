@@ -260,12 +260,13 @@ function updateDashboard() {
     renderChart(sortedBrands, chartLabels, pivot);
 }
 
-// --- RENDER TABLE ---
+// --- RENDER TABLE MEJORADA (CON DELTAS) ---
 function renderTable(sortedBrands, sortedDates, pivot) {
     const theadRow = document.getElementById('table-header-row')
     const tbody = document.getElementById('table-body')
     
-    theadRow.innerHTML = '<th class="px-4 py-3 text-left font-semibold text-slate-600 w-24">DATE</th>'
+    // 1. Cabecera (Igual que antes)
+    theadRow.innerHTML = '<th class="px-4 py-3 text-left font-semibold text-slate-600 w-32">DATE</th>'
     sortedBrands.forEach(b => {
         const colorStyle = brandPalette[b] ? `style="color: ${brandPalette[b].border}"` : '';
         theadRow.innerHTML += `<th class="px-4 py-3 text-right font-semibold" ${colorStyle}>${b}</th>`
@@ -279,22 +280,73 @@ function renderTable(sortedBrands, sortedDates, pivot) {
         return;
     }
 
-    [...sortedDates].reverse().forEach(date => {
+    // Las fechas ya vienen ordenadas, pero aseguramos orden cronológico inverso (Hoy primero)
+    const displayDates = [...sortedDates].reverse();
+
+    displayDates.forEach((date, index) => {
+        // Buscamos la fecha "anterior" (que en la lista inversa es el siguiente índice)
+        // Esto es para comparar Hoy vs Ayer
+        const prevDate = displayDates[index + 1];
+
         const tr = document.createElement('tr')
-        tr.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+        tr.className = "border-b border-slate-50 hover:bg-slate-50/50 transition-colors group"
         
-        let rowHtml = `<td class="px-4 py-4 font-semibold text-slate-700 whitespace-nowrap">${date}</td>`
-        let total = 0
+        // Columna Fecha
+        let rowHtml = `<td class="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">${date}</td>`
+        let rowTotal = 0
+        let prevRowTotal = 0
+
+        // Columnas de Marcas
         sortedBrands.forEach(brand => {
             const count = (pivot[date] && pivot[date][brand]) || 0
-            total += count
-            const textClass = count === 0 ? 'text-slate-300' : 'text-slate-600 font-medium'
-            rowHtml += `<td class="px-4 py-4 text-right ${textClass}">${count > 0 ? count.toLocaleString() : '-'}</td>`
+            const prevCount = prevDate ? ((pivot[prevDate] && pivot[prevDate][brand]) || 0) : null;
+            
+            rowTotal += count
+            if (prevCount !== null) prevRowTotal += prevCount;
+
+            // Generamos la celda con el indicador de tendencia
+            const cellContent = generateTrendCell(count, prevCount);
+            rowHtml += `<td class="px-2 py-3 text-right">${cellContent}</td>`
         })
-        rowHtml += `<td class="px-4 py-4 text-center font-black text-slate-800 border-l border-slate-200 bg-slate-50">${total.toLocaleString()}</td>`
+
+        // Columna Total (Destacada)
+        const totalContent = generateTrendCell(rowTotal, prevDate ? prevRowTotal : null, true);
+        rowHtml += `<td class="px-4 py-3 text-right font-black text-slate-800 border-l border-slate-200 bg-slate-50">${totalContent}</td>`
+        
         tr.innerHTML = rowHtml
         tbody.appendChild(tr)
     })
+}
+
+// Función auxiliar para generar el HTML del número + la flechita
+function generateTrendCell(current, previous, isTotal = false) {
+    // Si el valor es 0, lo mostramos gris suave
+    if (current === 0) return '<span class="text-slate-300">-</span>';
+
+    const numHtml = `<span class="${isTotal ? 'text-lg' : 'text-sm'} text-slate-700">${current.toLocaleString()}</span>`;
+
+    // Si no hay día anterior (es el último dato) o son iguales, solo devolvemos el número
+    if (previous === null || current === previous) {
+        return numHtml;
+    }
+
+    const diff = current - previous;
+    const isReduction = diff < 0; // ¿Bajó el volumen? (Bueno = Verde)
+    
+    // Configuración de colores
+    // Verde (Emerald) si bajó (bueno), Rojo (Rose) si subió (malo)
+    const colorClass = isReduction ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+    const arrow = isReduction ? '▼' : '▲';
+    
+    // Solo mostramos la etiqueta si la diferencia es relevante (opcional, aquí mostramos todo)
+    // El Math.abs(diff) quita el signo negativo porque ya usamos la flecha hacia abajo
+    const badgeHtml = `
+        <div class="inline-flex items-center justify-center px-1.5 py-0.5 ml-1.5 rounded text-[10px] font-bold ${colorClass} bg-opacity-60">
+            <span class="mr-0.5 text-[8px]">${arrow}</span>${Math.abs(diff)}
+        </div>
+    `;
+
+    return `<div class="flex items-center justify-end w-full">${numHtml}${badgeHtml}</div>`;
 }
 
 // --- RENDER CHART ---
